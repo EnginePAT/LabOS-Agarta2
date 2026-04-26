@@ -1,0 +1,3 @@
+build/
+.DSStore
+compile_commands.json
