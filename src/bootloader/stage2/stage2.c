@@ -1,40 +1,15 @@
 #include "fs/labfs.h"
 #include <stdint.h>
+#include <util/util.h>
+#include "disk/ata.h"
+#include "serial.h"
 
 volatile uint8_t* video = (uint8_t*)0xb8000;
 
-static inline void outb(uint16_t port, uint8_t val) {
-    __asm__ volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
-}
-
-static inline uint8_t inb(uint16_t port) {
-    uint8_t ret;
-    __asm__ volatile ("inb %1, %0" : "=a"(ret) : "Nd"(port));
-    return ret;
-}
-
-static inline uint16_t inw(uint16_t port) {
-    uint16_t ret;
-    __asm__ volatile ("inw %1, %0" : "=a"(ret) : "Nd"(port));
-    return ret;
-}
-
-void ata_read28(uint32_t lba, uint8_t* buffer, int slave) {
-    while (inb(0x1F7) & 0x80);
-
-    // bit 4 = 0 for master, 1 for slave
-    outb(0x1F6, (slave ? 0xF0 : 0xE0) | ((lba >> 24) & 0x0F));
-    outb(0x1F2, 1);
-    outb(0x1F3, (uint8_t)(lba));
-    outb(0x1F4, (uint8_t)(lba >> 8));
-    outb(0x1F5, (uint8_t)(lba >> 16));
-    outb(0x1F7, 0x20);
-
-    while (!(inb(0x1F7) & 0x08));
-
-    for (int i = 0; i < 256; i++)
-        ((uint16_t*)buffer)[i] = inw(0x1F0);
-}
+struct BootConfig {
+    int version;
+    char path[64];
+};
 
 void print(const char* s)
 {
@@ -46,57 +21,234 @@ void print(const char* s)
     }
 }
 
-static inline void serial_out(char c) {
-    while ((inb(0x3F8 + 5) & 0x20) == 0);  // Wait for TX ready
-    outb(0x3F8, c);
+int strcmp(const char* a, const char* b)
+{
+    while (*a && (*a == *b)) {
+        a++;
+        b++;
+    }
+    return *(const unsigned char*)a - *(const unsigned char*)b;
 }
 
-void serial_print(const char* s) {
-    while (*s) serial_out(*s++);
+char* substring(char* buffer, int start, int end)
+{
+    static char result[128];
+    int pos = 0;
+
+    for (int i = start; i <= end; i++)
+    {
+        result[pos++] = buffer[i];
+    }
+    result[pos] = '\0';
+    return result;
 }
 
-static void serial_init(void) {
-    outb(0x3F8 + 1, 0x00); // disable interrupts
-    outb(0x3F8 + 3, 0x80); // enable DLAB
-    outb(0x3F8 + 0, 0x03); // divisor low  (38400 baud)
-    outb(0x3F8 + 1, 0x00); // divisor high
-    outb(0x3F8 + 3, 0x03); // 8N1, clear DLAB
-    outb(0x3F8 + 2, 0xC7); // enable FIFO, clear, 14-byte threshold
-    outb(0x3F8 + 4, 0x0B); // IRQs off, RTS/DSR set
+int atoi(char* str)
+{
+    int res = 0;
+    for (int i = 0; str[i] != '\n' && str[i] != '\r' && str[i] != '\0'; ++i)
+    {
+        res = res * 10 + str[i] - '0';
+    }
+    return res;
 }
 
-void serial_hex_dump(uint8_t* buf, int len) {
-    char hex[] = "0123456789ABCDEF";
-    for (int i = 0; i < len; i++) {
-        serial_out(hex[buf[i] >> 4]);
-        serial_out(hex[buf[i] & 0xF]);
-        serial_out(' ');
-        if ((i + 1) % 16 == 0) serial_print("\r\n");
+void get_kernel_path(char* buffer, struct BootConfig* bcfg)
+{
+    int pos = 0;
+    while (buffer[pos] != 0)
+    {
+        if (buffer[pos] == '\n')
+        {
+            pos++;
+            continue;
+        }
+
+        if (buffer[pos] == ':') pos++;
+
+        // key
+        char key[32];
+        int k = 0;
+        int key_start = pos;
+        while (buffer[pos] != '=' && buffer[pos] != '\n' && buffer[pos] != 0 && k < (int)sizeof(key) - 1) {
+            key[k++] = buffer[pos++];
+        }
+        key[k] = '\0';
+
+        if (buffer[pos] != '=') {
+            while (buffer[pos] != '\n' && buffer[pos] != 0) pos++;
+            continue;
+        }
+        pos++; // skip '='
+
+        // value
+        char val[128];
+        int v = 0;
+        while (buffer[pos] != '\n' && buffer[pos] != 0 && v < (int)sizeof(val) - 1) {
+            val[v++] = buffer[pos++];
+        }
+        val[v] = '\0';
+
+        if (strcmp(key, "version") == 0)
+        {
+            bcfg->version = atoi(val);
+        } else if (strcmp(key, "kernel") == 0)
+        {
+            int i = 0;
+            for (i = 0; val[i] != '\0'; i++)
+            {
+                bcfg->path[i] = val[i];
+            }
+            bcfg->path[i] = '\0';
+        }
     }
 }
 
-void serial_print_hex(uint32_t val) {
-    char hex[] = "0123456789ABCDEF";
-    serial_print("0x");
-    for (int i = 28; i >= 0; i -= 4)
-        serial_out(hex[(val >> i) & 0xF]);
+int resolve_path(char* path, struct Inode* inodes, struct Superblock* sb)
+{
+    // Strip leading slash
+    int pos = 0;
+    if (path[pos] == '/') pos++;
+
+    int current_inode = sb->root_inode;
+
+    while (path[pos] != '\0')
+    {
+        // Extract next path component
+        char name[64];
+        int n = 0;
+        while (path[pos] != '/' && path[pos] != '\0' && n < 63)
+            name[n++] = path[pos++];
+        name[n] = '\0';
+        if (path[pos] == '/') pos++;
+
+        // Search current dir's data block for this name
+        struct Inode* dir = &inodes[current_inode];
+        uint8_t dirbuf[512];
+        ata_read28(dir->start_block, dirbuf, 0);
+        struct DirEntry* entries = (struct DirEntry*)dirbuf;
+
+        int found = -1;
+        for (int i = 0; i < LABFS_DIRENTRIES_PER_BLOCK; i++)
+        {
+            if (entries[i].inode_idx == 0) continue;
+            if (strcmp(entries[i].name, name) == 0)
+            {
+                found = entries[i].inode_idx;
+                break;
+            }
+        }
+
+        if (found < 0) {
+            serial_print("resolve_path: not found: ");
+            serial_print(name);
+            serial_print("\r\n");
+            return -1;
+        }
+        current_inode = found;
+    }
+    return current_inode;
+}
+
+void* memcpy(void* dest, const void* src, int n)
+{
+    uint8_t* d = (uint8_t*)dest;
+    const uint8_t* s = (const uint8_t*)src;
+    for (int i = 0; i < n; i++)
+        d[i] = s[i];
+    return dest;
 }
 
 extern void stage2_main(unsigned int magic, unsigned int addr)
 {
     serial_init();
     serial_print("Stage2 started\r\n");
-    print("Hello, world!");
+    print("Stage 2 bootloader started!");
 
     uint8_t buffer[512];
-    ata_read28(0, buffer, 1);
-    struct Superblock* sb = (struct Superblock*)buffer;
+    ata_read28(0, buffer, 0);
+    struct Superblock sb;
+    memcpy(&sb, buffer + 3, sizeof(struct Superblock));
 
-    // Dump the contents to the serial console
-    serial_print("Magic:       "); serial_print_hex(sb->magic);       serial_print("\r\n");
-    serial_print("Version:     "); serial_print_hex(sb->version);     serial_print("\r\n");
-    serial_print("Inode start: "); serial_print_hex(sb->inode_start); serial_print("\r\n");
-    serial_print("Data start:  "); serial_print_hex(sb->data_start);  serial_print("\r\n");
+    // Verify the filesystem is indeed LabFS-Lite
+    if (sb.magic != LABFS_MAGIC || sb.version > LABFS_VERSION)
+    {
+        serial_print("Error: Not a valid filesystem.\n");
+        while (1);
+    }
+
+    // Now we can look for /config.cfg and parse it
+    String config = "config.cfg";
+    uint8_t inode_buf[512];                             // Enough for small inode tables for now
+    ata_read28(sb.inode_start, inode_buf, 0);
+
+    struct Inode* inodes = (struct Inode*)inode_buf;
+    struct Inode* root = &inodes[sb.root_inode];       // Or 0 if root is fixed
+
+    uint8_t dirent_buf[512];
+    ata_read28(sb.data_start, dirent_buf, 0);
+    struct DirEntry* entries = (struct DirEntry*)dirent_buf;
+
+    struct DirEntry* cfg = 0;
+    for (int i = 0; i < LABFS_DIRENTRIES_PER_BLOCK * 2; i++)
+    {
+        if (entries[i].inode_idx == 0)
+            continue;
+
+        if (strcmp(entries[i].name, config) == 0)
+        {
+            cfg = &entries[i];
+        }
+    }
+
+    if (!cfg) {
+        serial_print("config.cfg not found\r\n");
+        while (1);
+    }
+
+    serial_print("Found entry: ");
+    serial_print(cfg->name);
+    serial_print("\r\n");
+
+    struct Inode* cfg_inode = &inodes[cfg->inode_idx];
+
+    uint8_t cfg_buf[LABFS_BLOCK_SIZE];
+    ata_read28(cfg_inode->start_block, cfg_buf, 0);
+
+    serial_print("config.cfg contents:\n");
+    serial_print((char*)cfg_buf);
+
+    // Now we can parse the config file
+    struct BootConfig boot_config;
+    get_kernel_path((char*)cfg_buf, &boot_config);
+    serial_print_hex(boot_config.version);
+    serial_print("\n");
+    serial_print(boot_config.path);
+    serial_print("\n");
+
+    // Now we can loop over the filesystem, and find kernel.bin
+    char* kernel_path = boot_config.path;
+    int kernel_inode_idx = resolve_path(kernel_path, inodes, &sb);
+    if (kernel_inode_idx < 0)
+    {
+        serial_print("kernel not found!\r\n");
+        while (1);
+    }
+
+    // Load the kernel into memory at 0x100000 (1MB)
+    struct Inode* kernel_inode = &inodes[kernel_inode_idx];
+    uint8_t* kernel_addr = (uint8_t*)0x100000;
+
+    for (uint32_t i = 0; i < kernel_inode->block_count; i++)
+    {
+        ata_read28(kernel_inode->start_block + i, kernel_addr + (i * 512), 0);
+    }
+    serial_print("Kernel loaded!\n");
+
+    // Jump to kernel (passing LBootInfo eventually)
+    typedef void (*KernelEntry)(unsigned int magic, uint8_t* addr);
+    KernelEntry kernel_entry = (KernelEntry)kernel_addr;
+    kernel_entry(0x2BADB002, kernel_addr);
 
     while (1);
 }

@@ -145,14 +145,16 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    // Find next free block
-    uint32_t next_block = sb.data_start + 1;
+    // Find next free block (respect both files and directories)
+    uint32_t next_block = sb.data_start;
+
     for (int i = 0; i < sb.inode_count; i++) {
-        if (inodes[i].type == LABFS_TYPE_FILE) {
-            uint32_t end = inodes[i].start_block + inodes[i].block_count;
-            if (end > next_block)
-                next_block = end;
-        }
+        if (inodes[i].block_count == 0)
+            continue;
+
+        uint32_t end = inodes[i].start_block + inodes[i].block_count;
+        if (end > next_block)
+            next_block = end;
     }
 
     // Open source file

@@ -6,7 +6,7 @@ extern kernel_main
 
 _start:
     ; Execute the kernel
-    call kernel_main
+    jmp kernel_main
     
     ; We should never get here
     cli

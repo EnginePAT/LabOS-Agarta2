@@ -18,6 +18,11 @@
 #define LABFS_TYPE_FILE 1
 #define LABFS_TYPE_DIR  2
 
+#define LABFS_MAX_FILES 16      // max inodes (bump from 3)
+#define LABFS_MAX_DIRENTS 16    // max dir entries
+
+#define LABFS_DIRENTRIES_PER_BLOCK (LABFS_BLOCK_SIZE / sizeof(struct DirEntry))
+
 struct Superblock {
     uint32_t magic;             // Magic = 0x4FB6
     uint8_t version;            // Version = 1

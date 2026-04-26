@@ -14,6 +14,8 @@ CFLAGS=-ffreestanding -nostdlib -m32 -Iinclude/ -g -c
 #
 SRC_DIR=src
 BUILD_DIR=build
+BOOTLOADER_DIR=$(BUILD_DIR)/boot
+KERNEL_DIR=$(BUILD_DIR)/kernel
 TOOLS_DIR=tools
 
 
@@ -22,50 +24,70 @@ TOOLS_DIR=tools
 #
 all: mtools $(BUILD_DIR)/labos-agarta.img
 
-$(BUILD_DIR)/labos-agarta.img: stage1 stage2 kernel
-	dd if=$(BUILD_DIR)/boot.bin of=$@ conv=notrunc
+$(BUILD_DIR)/labos-agarta.img: stage1 stage2 kernel | always
+	dd if=$(BOOTLOADER_DIR)/boot.bin of=$@ conv=notrunc
 	./tools/mkfs.labfs $@
 	./tools/mdir.labfs $@ boot /boot
 	./tools/mcopy.labfs $@ config.cfg /config.cfg
-	./tools/mcopy.labfs $@ $(BUILD_DIR)/stage2.bin /stage2.bin
-	./tools/mcopy.labfs $@ $(BUILD_DIR)/kernel.bin /boot/kernel.bin
+	./tools/mcopy.labfs $@ $(BOOTLOADER_DIR)/stage2.bin /stage2.bin
+	./tools/mcopy.labfs $@ $(KERNEL_DIR)/kernel.bin /boot/kernel.bin
 
 
 #
 # Stage 1 Bootloader
 #
-stage1: $(BUILD_DIR)/boot.bin
+stage1: $(BOOTLOADER_DIR)/boot.bin
 
-$(BUILD_DIR)/boot.bin: $(SRC_DIR)/bootloader/boot.asm
+$(BOOTLOADER_DIR)/boot.bin: $(SRC_DIR)/bootloader/boot.asm | always
 	$(ASM) $< -f bin -o $@
 
-$(BUILD_DIR)/zeroes.bin: $(SRC_DIR)/bootloader/zeroes.asm
+$(BOOTLOADER_DIR)/zeroes.bin: $(SRC_DIR)/bootloader/zeroes.asm | always
 	$(ASM) $< -f bin -o $@
 
 
 #
 # Stage 2 Bootloader
 #
-stage2: $(BUILD_DIR)/stage2.bin
+stage2: $(BOOTLOADER_DIR)/stage2.bin
 
-$(BUILD_DIR)/stage2.bin: $(SRC_DIR)/bootloader/stage2/stage2_entry.asm $(SRC_DIR)/bootloader/stage2/stage2.c
-	$(CC) $(CFLAGS) $(SRC_DIR)/bootloader/stage2/stage2.c -o $(BUILD_DIR)/stage2.o
-	$(ASM) $(SRC_DIR)/bootloader/stage2/stage2_entry.asm -f elf32 -o $(BUILD_DIR)/stage2_entry.o
-	$(LD) -T $(SRC_DIR)/linker.ld $(BUILD_DIR)/stage2_entry.o $(BUILD_DIR)/stage2.o -o $@ --oformat binary
+STAGE2_OBJS=$(BOOTLOADER_DIR)/stage2_entry.o $(BOOTLOADER_DIR)/stage2.o $(BOOTLOADER_DIR)/util.o \
+	$(BOOTLOADER_DIR)/ata.o $(BOOTLOADER_DIR)/serial.o
 
+$(BOOTLOADER_DIR)/stage2.bin: $(STAGE2_OBJS) | always
+	$(LD) -T $(SRC_DIR)/linker.ld $^ -o $@ --oformat binary
+
+$(BOOTLOADER_DIR)/stage2_entry.o: $(SRC_DIR)/bootloader/stage2/stage2_entry.asm | always
+	$(ASM) $< -f elf32 -o $@
+
+$(BOOTLOADER_DIR)/stage2.o: $(SRC_DIR)/bootloader/stage2/stage2.c | always
+	$(CC) $(CFLAGS) $< -o $@
+
+$(BOOTLOADER_DIR)/util.o: $(SRC_DIR)/util/util.c | always
+	$(CC) $(CFLAGS) $< -o $@
+
+$(BOOTLOADER_DIR)/ata.o: $(SRC_DIR)/bootloader/stage2/disk/ata.c | always
+	$(CC) $(CFLAGS) $< -o $@
+
+$(BOOTLOADER_DIR)/serial.o: $(SRC_DIR)/bootloader/stage2/serial.c | always
+	$(CC) $(CFLAGS) $< -o $@
 
 #
 # Kernel
 #
-kernel: $(BUILD_DIR)/kernel.bin
+kernel: $(KERNEL_DIR)/kernel.bin
 
-$(BUILD_DIR)/kernel.bin: $(BUILD_DIR)/kernel_entry.o $(BUILD_DIR)/kernel.o
-	$(LD) -T $(SRC_DIR)/linker.ld $^ -o $@ --oformat binary
+KERNEL_OBJS=$(KERNEL_DIR)/kernel_entry.o $(KERNEL_DIR)/kernel.o $(KERNEL_DIR)/util.o
 
-$(BUILD_DIR)/kernel_entry.o: $(SRC_DIR)/kernel/kernel_entry.asm
+$(KERNEL_DIR)/kernel.bin: $(KERNEL_OBJS) | always
+	$(LD) -T $(SRC_DIR)/kernel.ld $^ -o $@ --oformat binary
+
+$(KERNEL_DIR)/kernel_entry.o: $(SRC_DIR)/kernel/kernel_entry.asm | always
 	$(ASM) $< -f elf32 -o $@
 
-$(BUILD_DIR)/kernel.o: $(SRC_DIR)/kernel/kernel.c
+$(KERNEL_DIR)/kernel.o: $(SRC_DIR)/kernel/kernel.c | always
+	$(CC) $(CFLAGS) $< -o $@
+
+$(KERNEL_DIR)/util.o: $(SRC_DIR)/util/util.c | always
 	$(CC) $(CFLAGS) $< -o $@
 
 
@@ -96,6 +118,14 @@ clean:
 	rm -rf $(TOOLS_DIR)/mkfs.labfs
 	rm -rf $(TOOLS_DIR)/mdir.labfs
 	rm -rf $(TOOLS_DIR)/mdump.labfs
+
+
+#
+# Always
+#
+always:
+	mkdir -p $(BOOTLOADER_DIR)
+	mkdir -p $(KERNEL_DIR)
 
 
 #
