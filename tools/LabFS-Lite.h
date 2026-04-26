@@ -11,12 +11,15 @@
 
 #include <stdint.h>
 
-#define LABFS_MAGIC 0x4fB6
+#define LABFS_MAGIC 0x4fb6
 #define LABFS_VERSION 1
 #define LABFS_MAX_FILENAME 56
 #define LABFS_BLOCK_SIZE 512
 #define LABFS_TYPE_FILE 1
 #define LABFS_TYPE_DIR  2
+
+#define LABFS_MAX_FILES 16      // max inodes (bump from 3)
+#define LABFS_MAX_DIRENTS 16    // max dir entries
 
 struct Superblock {
     uint32_t magic;             // Magic = 0x4FB6

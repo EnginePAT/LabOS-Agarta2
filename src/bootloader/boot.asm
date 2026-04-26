@@ -5,6 +5,7 @@ bits 16
 ; LabFS-Lite Superblock
 ;
 jmp short _start
+nop
 
 magic:          dd 0x4fb6
 version:        db 1
