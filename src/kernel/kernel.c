@@ -1,11 +1,18 @@
 #include <stdint.h>
-
-volatile uint8_t* video = (uint8_t*)0xb8000;
+#include <kernel/core/vga/vga.h>
+#include <kernel/core/keyboard.h>
 
 void kernel_main(unsigned int magic, uint8_t* addr)
 {
-    // Do nothing for now
-    video[0] = 'A';
-    video[1] = 0x0f;
+    // Print a message
+    vga_clear();
+    vga_print("Hello, world!\n>_");
+
+    while (1)
+    {
+        char c = keyboard_poll();
+        if (c) vga_putchar(c);
+    }
+
     while (1);
 }

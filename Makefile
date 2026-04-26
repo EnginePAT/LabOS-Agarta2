@@ -76,7 +76,7 @@ $(BOOTLOADER_DIR)/serial.o: $(SRC_DIR)/bootloader/stage2/serial.c | always
 #
 kernel: $(KERNEL_DIR)/kernel.bin
 
-KERNEL_OBJS=$(KERNEL_DIR)/kernel_entry.o $(KERNEL_DIR)/kernel.o $(KERNEL_DIR)/util.o
+KERNEL_OBJS=$(KERNEL_DIR)/kernel_entry.o $(KERNEL_DIR)/kernel.o $(KERNEL_DIR)/util.o $(KERNEL_DIR)/vga.o $(KERNEL_DIR)/keyboard.o
 
 $(KERNEL_DIR)/kernel.bin: $(KERNEL_OBJS) | always
 	$(LD) -T $(SRC_DIR)/kernel.ld $^ -o $@ --oformat binary
@@ -88,6 +88,12 @@ $(KERNEL_DIR)/kernel.o: $(SRC_DIR)/kernel/kernel.c | always
 	$(CC) $(CFLAGS) $< -o $@
 
 $(KERNEL_DIR)/util.o: $(SRC_DIR)/util/util.c | always
+	$(CC) $(CFLAGS) $< -o $@
+
+$(KERNEL_DIR)/vga.o: $(SRC_DIR)/kernel/core/vga/vga.c | always
+	$(CC) $(CFLAGS) $< -o $@
+
+$(KERNEL_DIR)/keyboard.o: $(SRC_DIR)/kernel/core/keyboard.c | always
 	$(CC) $(CFLAGS) $< -o $@
 
 
