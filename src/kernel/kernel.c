@@ -33,6 +33,10 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
     serial_print_hex(boot_info->magic);
     serial_print("\n");
 
+    serial_print("Memory Size in bytes: ");
+    serial_print_hex(boot_info->memory_size);
+    serial_print("\n");
+
     // Run the shell
     // shell_main();
 

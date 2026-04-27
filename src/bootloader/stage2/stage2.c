@@ -6,6 +6,7 @@
 #include <kernel/boot_info.h>
 
 volatile uint8_t* video = (uint8_t*)0xb8000;
+typedef unsigned int uint;                      // So we don't have to write 'unsigned int' all the time
 
 struct BootConfig {
     int version;
@@ -128,7 +129,7 @@ void* memcpy(void* dest, const void* src, int n)
     return dest;
 }
 
-extern void stage2_main(unsigned int magic, unsigned int addr, unsigned int fb, unsigned int width, unsigned int height, unsigned int pitch, unsigned int bpp)
+extern void stage2_main(uint32_t magic, uint32_t addr, uint32_t msize, uint32_t fb, uint32_t width, uint32_t height, uint32_t pitch, uint32_t bpp)
 {
     serial_init();
     serial_print("Stage2 started\r\n");
@@ -203,11 +204,12 @@ extern void stage2_main(unsigned int magic, unsigned int addr, unsigned int fb, 
     }
     serial_print("Kernel loaded!\n");
 
-    // Jump to kernel (passing LBootInfo eventually)
+    // Jump to kernel (passing LBootInfo & LFramebufferInfo)
     struct LBootInfo* boot_info = (struct LBootInfo*)0x500;
     struct LFramebufferInfo* fb_info = (struct LFramebufferInfo*)0x600;
     boot_info->magic       = magic;
     boot_info->addr        = 0x1000;
+    boot_info->memory_size = msize;
 
     fb_info->framebuffer = fb;
     fb_info->width       = width;

@@ -10,6 +10,7 @@
 struct LBootInfo {
     uint32_t magic;         // Bootloader magic number for verification
     uint32_t addr;          // Kernel address
+    uint32_t memory_size;   // How much memory we actually have. This is set by the bootloader
 };
 
 struct LFramebufferInfo {
