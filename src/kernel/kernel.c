@@ -36,7 +36,7 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
     // Initialize the keyboard and eventually the mouse!
     keyboard_init();
 
-    // float x = 2 / 0;            // We can't do this without getting an infinite result - should trigger a fault
+    float x = 2 / 0;            // We can't do this without getting an infinite result - should trigger a fault
 
     ext2_init();
     serial_print("Bootloader Magic: ");

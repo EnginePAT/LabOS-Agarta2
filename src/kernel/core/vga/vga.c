@@ -86,6 +86,25 @@ void vga_print(String s)
     while (*s) vga_putchar(*s++);
 }
 
+void vga_print_hex(uint32_t n)
+{
+    char hex_chars[] = "0123456789ABCDEF";
+    char buffer[11]; // "0x" + 8 digits + null terminator
+
+    buffer[0] = '0';
+    buffer[1] = 'x';
+    
+    // Process each 4-bit nibble from left to right
+    for (int i = 7; i >= 0; i--)
+    {
+        // Shift the nibble into the lowest 4 bits and mask it
+        buffer[i + 2] = hex_chars[(n >> ((7 - i) * 4)) & 0xF];
+    }
+    
+    buffer[10] = '\0';
+    vga_print(buffer);
+}
+
 void fb_print(const char* s, int x, int y, uint32_t fg, uint32_t bg)
 {
     while (*s)

@@ -135,12 +135,37 @@ char* exception_messages[] = {
     "Reserved"
 };
 
+void panic(struct InterruptRegisters* regs, const char* message) {
+    asm volatile("cli"); // Stop everything immediately
+    
+    // vga_set_color(0x00FF0000); // Make it Red if you have color support!
+    vga_print("\n*** KERNEL PANIC ***\n");
+    vga_print("Reason: ");
+    vga_print(message);
+    vga_print("\n\n");
+
+    // Print the Register State
+    vga_print("EIP: "); vga_print_hex(regs->eip);
+    // vga_print("  CS: "); vga_print_hex(regs->cs);
+    vga_print("\nEAX: "); vga_print_hex(regs->eax);
+    vga_print("  EBX: "); vga_print_hex(regs->ebx);
+    vga_print("\nECX: "); vga_print_hex(regs->ecx);
+    vga_print("  EDX: "); vga_print_hex(regs->edx);
+    vga_print("\nESP: "); vga_print_hex(regs->esp);
+    
+    if (regs->int_no == 14) {
+        uint32_t cr2;
+        asm volatile("mov %%cr2, %0" : "=r"(cr2));
+        vga_print("\nPage Fault at: "); vga_print_hex(cr2);
+    }
+
+    vga_print("\n\nSYSTEM HALTED.");
+    for (;;);
+}
+
 void isr_handler(struct InterruptRegisters* regs){
     if (regs->int_no < 32){
-        vga_print(exception_messages[regs->int_no]);
-        vga_print("\n");
-        vga_print("Exception! System Halted\n");
-        for (;;);
+        panic(regs, exception_messages[regs->int_no]);
     }
 }
 
