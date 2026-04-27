@@ -207,7 +207,7 @@ extern void stage2_main(unsigned int magic, unsigned int addr, unsigned int fb, 
     struct LBootInfo* boot_info = (struct LBootInfo*)0x500;
     struct LFramebufferInfo* fb_info = (struct LFramebufferInfo*)0x600;
     boot_info->magic       = magic;
-    boot_info->addr         = 
+    boot_info->addr        = 0x1000;
 
     fb_info->framebuffer = fb;
     fb_info->width       = width;

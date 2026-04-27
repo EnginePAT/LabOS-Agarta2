@@ -6,11 +6,27 @@
 uint16_t* video = (uint16_t*)0xb8000;
 static int cursor_x = 0;
 static int cursor_y = 0;
+int min_cursor_x = 13 * FONT_WIDTH;              // The size of the prompt '[Agarta]: ~$ '
 struct LFramebufferInfo* _fb_info;
 
 void setFbInfo(struct LFramebufferInfo* info)
 {
     _fb_info = info;
+}
+
+void putpixel(int x, int y, uint32_t color)
+{
+    uint32_t* fb = (uint32_t*)_fb_info->framebuffer;
+    uint32_t pitch_pixels = _fb_info->pitch / 4;
+    fb[y * pitch_pixels + x] = color;
+}
+
+uint32_t getpixel(int x, int y)
+{
+    uint32_t* fb = (uint32_t*)_fb_info->framebuffer;
+    uint32_t pitch_pixels = _fb_info->pitch / 4;
+
+    return fb[y * pitch_pixels + x];
 }
 
 void draw_glyph(char c, int x, int y, uint32_t fg, uint32_t bg)
@@ -44,14 +60,14 @@ void vga_putchar(char c)
         cursor_x = 0;
     } else if (c == '\b')
     {
-        if (cursor_x > 0)
+        if (cursor_x > min_cursor_x)
         {
             cursor_x -= FONT_WIDTH;
-        } else if (cursor_y > 0)
-        {
-            cursor_y -= FONT_HEIGHT;
-            cursor_x = _fb_info->width - 1;
-        }
+        }// } else if (cursor_y > 0)
+        // {
+        //     cursor_y -= FONT_HEIGHT;
+        //     cursor_x = _fb_info->width - 1;
+        // }
         draw_glyph(' ', cursor_x, cursor_y, 0xFFFFFFFF, 0x00000000);
     } else
     {

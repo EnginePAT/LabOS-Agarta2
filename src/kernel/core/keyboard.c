@@ -8,6 +8,11 @@
 static int shift = 0;
 static int caps = 0;
 
+// Shell specific
+static char command_buffer[1024];
+static int buffer_idx = 0;
+volatile int command_ready = 0;
+
 static void keyboard_irq(struct InterruptRegisters* regs);
 
 void keyboard_init()
@@ -45,10 +50,27 @@ static void keyboard_irq(struct InterruptRegisters* regs)
 
     // Apply caps lock to letters only
     if (caps && c >= 'a' && c <= 'z') c -= 32;
-    if (caps && c >= 'A' && c <= 'Z') c += 32;
+    else if (caps && c >= 'A' && c <= 'Z') c += 32;
 
     if (c)
     {
-        vga_putchar(c);
+        if (c == '\n') {
+            command_buffer[buffer_idx] = '\0'; // Null terminate the string
+            command_ready = 1;                 // Signal the shell!
+            buffer_idx = 0;                    // Reset for next time
+            vga_putchar('\n');
+        } 
+        else if (c == '\b' && buffer_idx > 0) { // Backspace support!
+            buffer_idx--;
+            vga_putchar(c); 
+        }
+        else if (buffer_idx < 255) {
+            command_buffer[buffer_idx++] = c;
+            vga_putchar(c);
+        }
     }
+}
+
+char* keyboard_get_command() {
+    return command_buffer;
 }

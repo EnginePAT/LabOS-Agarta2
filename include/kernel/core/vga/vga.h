@@ -18,5 +18,7 @@ void vga_print(String s);
 void vga_print_hex(uint32_t n);
 
 void fb_print(const char* s, int x, int y, uint32_t fg, uint32_t bg);
+void putpixel(int x, int y, uint32_t color);
+uint32_t getpixel(int x, int y);
 
 #endif      // VGA_H

@@ -23,6 +23,9 @@ static const char keymap_shift[128] = {
     0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
 };
 
+extern volatile int command_ready; // The shell will watch this
+
 void keyboard_init();
+char* keyboard_get_command();
 
 #endif      // KEYBOARD_H
