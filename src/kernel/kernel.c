@@ -15,9 +15,9 @@ static void putpixel(struct LFramebufferInfo* fb, int x, int y, uint32_t color)
     uint8_t* addr = (uint8_t*)(fb->framebuffer + y * fb->pitch + x * (fb->bpp / 8));
 
     // VESA uses BGR for 24/32-bit modes
-    addr[0] = (color >> 8) & 0xFF;      // Blue
-    addr[1] = (color >> 8) & 0xFF;      // Green
-    addr[2] = (color >> 8) & 0xFF;      // Red
+    addr[0] = color & 0xFF;                 // Blue
+    addr[1] = (color >> 8) & 0xFF;          // Green
+    addr[2] = (color >> 16) & 0xFF;         // Red
 
     if (fb->bpp == 32) addr[3] = 0xFF;  // Alpha (ignored for our case, just here if we use 32-bit mode)
 }

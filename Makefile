@@ -32,6 +32,20 @@ $(BUILD_DIR)/labos-agarta.img: stage1 stage2 kernel | always
 	./tools/mcopy.labfs $@ $(BOOTLOADER_DIR)/stage2.bin /stage2.bin
 	./tools/mcopy.labfs $@ $(KERNEL_DIR)/kernel.bin /boot/kernel.bin
 
+# Create the EXT2 image, and copy/create files onto it
+	mke2fs -t ext2 ext2.img 32M
+	e2mkdir ext2.img:/boot
+	e2mkdir ext2.img:/usr
+	e2mkdir ext2.img:/bin
+	e2mkdir ext2.img:/lib
+	e2mkdir ext2.img:/home
+	e2mkdir ext2.img:/var
+	e2mkdir ext2.img:/tmp
+	e2mkdir ext2.img:/etc
+	e2mkdir ext2.img:/Frameworks
+	e2mkdir ext2.img:/Apps
+	e2cp test.txt ext2.img:/test.txt
+
 
 #
 # Stage 1 Bootloader
@@ -149,6 +163,7 @@ $(TOOLS_DIR)/mdump.labfs: $(TOOLS_DIR)/mdump.labfs.c
 #
 clean:
 	rm -rf $(BUILD_DIR)/*
+	rm -rf ext2.img
 	rm -rf $(TOOLS_DIR)/mcopy.labfs
 	rm -rf $(TOOLS_DIR)/mkfs.labfs
 	rm -rf $(TOOLS_DIR)/mdir.labfs

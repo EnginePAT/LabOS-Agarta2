@@ -55,7 +55,7 @@ void vga_putchar(char c)
         draw_glyph(' ', cursor_x, cursor_y, 0xFFFFFFFF, 0x00000000);
     } else
     {
-        draw_glyph(c, cursor_x, cursor_y, 0xFFFFFFFF, 0x00000000);
+        draw_glyph(c, cursor_x, cursor_y, 0xCCCCCCCC, 0x00000000);
         cursor_x += FONT_WIDTH;
         if (cursor_x >= _fb_info->width)
         {
