@@ -15,5 +15,7 @@ void ata_read28(uint32_t lba, uint8_t* buffer, int slave) {
     while (!(inb(0x1F7) & 0x08));
 
     for (int i = 0; i < 256; i++)
+    {
         ((uint16_t*)buffer)[i] = inw(0x1F0);
+    }
 }

@@ -1,0 +1,6 @@
+Hello, world!
+
+If you are reading/seeing this, it means the EXT2 filesystem driver worked!
+
+God bless,
+Patrick Dodwell (EnginePAT)
