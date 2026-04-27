@@ -140,23 +140,68 @@ main:
     add bx, 512
     loop .load_loop
 
-    ; Switch to protected mode and jump to stage2
-    mov ah, 0x00
-    mov al, 0x03
+    ; Query VESA mode info to get framebuffer address
+    ; Store VBE mode info block at 0x7000 (safe scratch area)
+    mov ax, 0x4F01          ; VESA get mode info
+    mov cx, 0x0118          ; mode number (no linear bit here!)
+    mov di, 0x7000          ; destination buffer (VBE ModeInfo block)
     int 0x10
+    cmp ax, 0x004F
+    jne .vesa_error
 
+    ; Framebuffer address is at offset +40 in the ModeInfo block
+    ; Store it somewhere stage2/kernel can find it
+    mov eax, [0x7028]       ; 0x7000 + 0x28 = phys_base_ptr
+    mov [vesa_fb], eax      ; save for later
+
+    ; Now set the mode
+    mov ax, 0x4F02
+    mov bx, 0x4118
+    or  bx, 0x4000
+    int 0x10
+    cmp ax, 0x004F
+    jne .vesa_error
+
+    ; After querying mode info, store key values
+    mov ax, [0x7012]        ; width (offset +0x12)
+    mov [vesa_width], ax
+
+    mov ax, [0x7014]        ; height (offset +0x14)  
+    mov [vesa_height], ax
+
+    mov ax, [0x7010]        ; pitch/bytes per scanline (offset +0x10)
+    mov [vesa_pitch], ax
+
+    mov eax, [0x7028]       ; framebuffer address (offset +0x28)
+    mov [vesa_fb], eax
+
+    mov al, [0x7019]        ; bpp (1 byte)
+    mov [vesa_bpp], al
+
+    ; Switch to protected mode
     jmp start_pm
 
 .not_found:
     mov si, msg_nfound
     call print
     jmp $
+.vesa_error:
+    mov si, msg_nvesa
+    call print
+    jmp $
 
 msg_found:      db 'Found stage2!', 0
-msg_nfound:     db 'Could not find stage2!', 0
+msg_nfound:     db 'Couldnt find stage2!', 0
+msg_nvesa:      db 'VESA error!', 0
 msg_diskerr:    db 'Disk error!', 0
 BOOT_DRIVE:     db 0
 stage2_name:    db 'stage2.bin', 0
+
+vesa_width:     dd 0
+vesa_height:    dd 0
+vesa_pitch:     dd 0
+vesa_fb:        dd 0
+vesa_bpp:       dd 0
 
 CODE_SEG equ gdt_code - gdt
 DATA_SEG equ gdt_data - gdt
@@ -182,9 +227,15 @@ PModeMain:
     mov ebp, 0x90000
     mov esp, ebp
 
-    push dword 0x1000           ; addr
+    push dword [vesa_bpp]
+    push dword [vesa_pitch]
+    push dword [vesa_height]
+    push dword [vesa_width]
+    push dword [vesa_fb]
+    push dword 0x1000           ; Where we are loaded in memory
     push dword 0x2BADB002       ; magic
-    call 0x1000
+
+    jmp 0x1000
 
 gdt:
 gdt_null:

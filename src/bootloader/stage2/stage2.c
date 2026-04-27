@@ -3,6 +3,7 @@
 #include <util/util.h>
 #include "disk/ata.h"
 #include "serial.h"
+#include <kernel/boot_info.h>
 
 volatile uint8_t* video = (uint8_t*)0xb8000;
 
@@ -159,7 +160,7 @@ void* memcpy(void* dest, const void* src, int n)
     return dest;
 }
 
-extern void stage2_main(unsigned int magic, unsigned int addr)
+extern void stage2_main(unsigned int magic, unsigned int addr, unsigned int fb, unsigned int width, unsigned int height, unsigned int pitch, unsigned int bpp)
 {
     serial_init();
     serial_print("Stage2 started\r\n");
@@ -206,25 +207,14 @@ extern void stage2_main(unsigned int magic, unsigned int addr)
         while (1);
     }
 
-    serial_print("Found entry: ");
-    serial_print(cfg->name);
-    serial_print("\r\n");
-
     struct Inode* cfg_inode = &inodes[cfg->inode_idx];
 
     uint8_t cfg_buf[LABFS_BLOCK_SIZE];
     ata_read28(cfg_inode->start_block, cfg_buf, 0);
 
-    serial_print("config.cfg contents:\n");
-    serial_print((char*)cfg_buf);
-
     // Now we can parse the config file
     struct BootConfig boot_config;
     get_kernel_path((char*)cfg_buf, &boot_config);
-    serial_print_hex(boot_config.version);
-    serial_print("\n");
-    serial_print(boot_config.path);
-    serial_print("\n");
 
     // Now we can loop over the filesystem, and find kernel.bin
     char* kernel_path = boot_config.path;
@@ -246,9 +236,20 @@ extern void stage2_main(unsigned int magic, unsigned int addr)
     serial_print("Kernel loaded!\n");
 
     // Jump to kernel (passing LBootInfo eventually)
-    typedef void (*KernelEntry)(unsigned int magic, uint8_t* addr);
+    struct LBootInfo* boot_info = (struct LBootInfo*)0x500;
+    struct LFramebufferInfo* fb_info = (struct LFramebufferInfo*)0x600;
+    boot_info->magic       = magic;
+    boot_info->addr         = 
+
+    fb_info->framebuffer = fb;
+    fb_info->width       = width;
+    fb_info->height      = height;
+    fb_info->pitch       = pitch;
+    fb_info->bpp         = bpp;
+
+    typedef void (*KernelEntry)(struct LBootInfo*, struct LFramebufferInfo*);
     KernelEntry kernel_entry = (KernelEntry)kernel_addr;
-    kernel_entry(0x2BADB002, kernel_addr);
+    kernel_entry(boot_info, fb_info);
 
     while (1);
 }
