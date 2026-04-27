@@ -1,38 +1,44 @@
+#include <kernel/core/vga/vga.h>
 #include <util/util.h>
 #include <kernel/core/keyboard.h>
+#include <kernel/mm/idt.h>
 #include <util/util.h>
 #include <stdint.h>
 
 static int shift = 0;
 static int caps = 0;
 
-char keyboard_poll()
+static void keyboard_irq(struct InterruptRegisters* regs);
+
+void keyboard_init()
 {
-    // Wait for a keypress
-    while (!(inb(0x64) & 0x01));
+    irq_install_handler(1, keyboard_irq);
+}
 
-    uint8_t scancode = inb(0x60);
+static void keyboard_irq(struct InterruptRegisters* regs)
+{
+    uint8_t scancode = inb(0x60);       // Get the scancode from the PS/2 keyboard port
 
-    // Key release (high bit set)
+    // Handle key release
     if (scancode & 0x80)
     {
         uint8_t released = scancode & 0x7F;
         if (released == 0x2A || released == 0x36) shift = 0;        // Shift released
-        return 0;
+        return;
     }
 
     // Shift pressed
     if (scancode == 0x2A || scancode == 0x36)
     {
         shift = 1;
-        return 0;
+        return;
     }
 
     // Caps lock toggle
     if (scancode == 0x3A)
     {
         caps = !caps;
-        return 0;
+        return;
     }
 
     char c = shift ? keymap_shift[scancode] : keymap[scancode];
@@ -40,5 +46,9 @@ char keyboard_poll()
     // Apply caps lock to letters only
     if (caps && c >= 'a' && c <= 'z') c -= 32;
     if (caps && c >= 'A' && c <= 'Z') c += 32;
-    return c;
+
+    if (c)
+    {
+        vga_putchar(c);
+    }
 }

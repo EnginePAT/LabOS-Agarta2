@@ -12,6 +12,10 @@ void outb(uint16_t port, uint8_t val);
 uint8_t inb(uint16_t port);
 uint16_t inw(uint16_t port);
 
+int strcmp(const char* a, const char* b);
+char* substring(char* buffer, int start, int end);
+int atoi(char* str);
+
 struct InterruptRegisters{
     uint32_t cr2;
     uint32_t ds;

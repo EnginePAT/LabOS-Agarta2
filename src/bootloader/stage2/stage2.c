@@ -22,38 +22,6 @@ void print(const char* s)
     }
 }
 
-int strcmp(const char* a, const char* b)
-{
-    while (*a && (*a == *b)) {
-        a++;
-        b++;
-    }
-    return *(const unsigned char*)a - *(const unsigned char*)b;
-}
-
-char* substring(char* buffer, int start, int end)
-{
-    static char result[128];
-    int pos = 0;
-
-    for (int i = start; i <= end; i++)
-    {
-        result[pos++] = buffer[i];
-    }
-    result[pos] = '\0';
-    return result;
-}
-
-int atoi(char* str)
-{
-    int res = 0;
-    for (int i = 0; str[i] != '\n' && str[i] != '\r' && str[i] != '\0'; ++i)
-    {
-        res = res * 10 + str[i] - '0';
-    }
-    return res;
-}
-
 void get_kernel_path(char* buffer, struct BootConfig* bcfg)
 {
     int pos = 0;

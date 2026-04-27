@@ -33,19 +33,17 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
     initIdt();
     initTimer();
 
+    // Initialize the keyboard and eventually the mouse!
+    keyboard_init();
+
     // float x = 2 / 0;            // We can't do this without getting an infinite result - should trigger a fault
 
     ext2_init();
     serial_print("Bootloader Magic: ");
     serial_print_hex(boot_info->magic);
+    serial_print("\n");
 
     fb_print("Hello, world!", 200, 200, 0xFFFFFFFF, 0x00000000);
-
-    while (1)
-    {
-        char c = keyboard_poll();
-        if (c) vga_putchar(c);
-    }
 
     while (1);
 }

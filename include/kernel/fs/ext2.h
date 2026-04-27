@@ -102,9 +102,20 @@ struct ext2_inode_table {
     uint32_t i_dir_acl;
     uint32_t i_faddr;
     uint8_t i_osd2[12];
-};
+} __attribute__((packed));
+
+struct ext2_dir_entry {
+    uint32_t inode;
+    uint16_t rec_len;
+    uint8_t name_len;
+    uint8_t file_type;
+    char name[0];
+} __attribute__((packed));
 
 void ext2_init();
 struct ext2_inode_table read_inode(uint32_t inode_num);
+void read_entries(uint32_t inode_num);
+void ext2_read_file(uint32_t inode_num, char dest[]);
+uint32_t ext2_find_entry(uint32_t dir_inode, const char* name);
 
 #endif      // EXT2_H

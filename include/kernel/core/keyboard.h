@@ -23,6 +23,6 @@ static const char keymap_shift[128] = {
     0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
 };
 
-char keyboard_poll();
+void keyboard_init();
 
 #endif      // KEYBOARD_H

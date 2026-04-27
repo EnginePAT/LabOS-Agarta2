@@ -2,6 +2,7 @@
 #include <kernel/disk/ata.h>
 #include <kernel/core/vga/vga.h>
 #include <kernel/core/vga/serial.h>
+#include <util/util.h>
 #include <util/mem.h>
 #include <stdint.h>
 
@@ -44,17 +45,17 @@ void ext2_init()
     ata_read28(bgdt_block * sectors_per_block, bgdt_buf, EXT2_DISK_DRIVE);
     memcpy(bgdt_buf, (uint8_t*)&bgd, (int)sizeof(struct ext2_block_group_desc));
 
-    serial_print("ext2: inodate table @ block ");
-    serial_print_hex(bgd.bg_inode_table);
-    serial_print("\r\n");
-    serial_print("ext2: inodes per group = ");
-    serial_print_hex(sb.s_inodes_per_group);
-    serial_print("\r\n");
-
     vga_print("EXT2 mounted!\n");
 
-    // Read the root inode and get its size
-    read_inode(2);
+    // Read the root inode and get its data
+    uint32_t inode_num = ext2_find_entry(2, "test.txt");
+    if (inode_num != 0) {
+        char test[1024];
+        ext2_read_file(inode_num, test);
+        vga_print(test);
+    } else {
+        serial_print("Invalid read.\n");
+    }
 }
 
 struct ext2_inode_table read_inode(uint32_t inode_num)
@@ -73,11 +74,88 @@ struct ext2_inode_table read_inode(uint32_t inode_num)
     ata_read28(sector, buf, EXT2_DISK_DRIVE);
     memcpy(buf + byte_offset, (uint8_t*)&inode_t, (int)sizeof(struct ext2_inode_table));
 
-    serial_print("ext2: inode ");
-    serial_print_hex(inode_num);
-    serial_print(" is ");
-    serial_print_hex(inode_t.i_size);
-    serial_print(" bytes!\n");
-
     return inode_t;
+}
+
+// Change return type to uint32_t
+uint32_t ext2_find_entry(uint32_t dir_inode, const char* name)
+{
+    struct ext2_inode_table inode_t = read_inode(dir_inode);
+    uint32_t* blocks = (uint32_t*)inode_t.i_block;
+    uint32_t data_block = blocks[0];
+
+    uint8_t buf[1024];
+    ata_read28(data_block * sectors_per_block, buf, EXT2_DISK_DRIVE);
+
+    int pos = 0;
+    while (pos < block_size)
+    {
+        struct ext2_dir_entry* entry = (struct ext2_dir_entry*)(buf + pos);
+        if (entry->rec_len == 0) break;
+
+        if (entry->inode != 0)
+        {
+            char ename[256];
+            memcpy(entry->name, ename, entry->name_len);
+            ename[entry->name_len] = '\0';
+
+            if (strcmp(ename, name) == 0)
+                return entry->inode;   // return inode number!
+        }
+        pos += entry->rec_len;
+    }
+    return 0;  // not found
+}
+
+void read_entries(uint32_t inode_num)
+{
+    struct ext2_inode_table inode_t = read_inode(inode_num);
+    uint32_t* blocks = (uint32_t*)inode_t.i_block;
+    uint32_t data_block = blocks[0];
+
+    uint8_t buf[1024];
+    ata_read28(data_block * sectors_per_block, buf, EXT2_DISK_DRIVE);
+
+    int pos = 0;
+    while (pos < block_size)
+    {
+        struct ext2_dir_entry* entry = (struct ext2_dir_entry*)(buf + pos);
+
+        if (entry->inode != 0)
+        {
+            serial_print("Entry name: ");
+
+            char name[256];
+            memcpy(entry->name, name, entry->name_len);    // Copy name bytes
+            name[entry->name_len] = '\0';                                   // Add null terminator
+
+            serial_print(name);
+            serial_print("\r\n");
+            serial_print("\n");
+        }
+        pos += entry->rec_len;
+    }
+}
+
+void ext2_read_file(uint32_t inode_num, char* dest)
+{
+    struct ext2_inode_table inode = read_inode(inode_num);
+    uint32_t* blocks = inode.i_block;
+
+    uint32_t bytes_left = inode.i_size;
+    uint32_t block_idx = 0;
+    char* ptr = dest;
+
+    while (bytes_left > 0)
+    {
+        uint8_t buf[1024];
+        ata_read28(blocks[block_idx] * sectors_per_block, buf, EXT2_DISK_DRIVE);
+
+        uint32_t to_copy = bytes_left < block_size ? bytes_left : block_size;
+        memcpy(buf, ptr, to_copy);
+        ptr += to_copy;
+        bytes_left -= to_copy;
+        block_idx++;
+    }
+    *ptr = '\0';
 }
