@@ -1,4 +1,4 @@
-#include "kernel/core/vga/serial.h"
+#include <kernel/core/vga/serial.h>
 #include <kernel/core/vga/vga.h>
 #include <kernel/core/keyboard.h>
 #include <kernel/boot_info.h>
@@ -10,6 +10,7 @@
 #include <kernel/fs/ext2.h>
 #include <kernel/core/shell.h>
 #include <kernel/core/mouse.h>
+#include <stdint.h>
 
 void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
 {
@@ -29,16 +30,27 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
     // float x = 2 / 0;            // We can't do this without getting an infinite result - should trigger a fault
 
     ext2_init();
-    serial_print("Bootloader Magic: ");
-    serial_print_hex(boot_info->magic);
-    serial_print("\n");
 
-    serial_print("Memory Size in bytes: ");
-    serial_print_hex(boot_info->memory_size);
-    serial_print("\n");
+    // Read the root inode and get its data
+    uint32_t inode_num = ext2_find_entry(2, "etc");
+    if (inode_num != 0) {
+        uint32_t bmp_inode_num = ext2_find_entry(inode_num, "LabOS-Mascot.bmp");
+        read_entries(inode_num);
+
+        if (bmp_inode_num != 0)
+        {
+            char test[1024];
+            ext2_read_file(bmp_inode_num, test);
+            vga_print(test);
+        } else {
+            serial_print("Invalid read for bmp image.\n");
+        }
+    } else {
+        serial_print("Invalid read.\n");
+    }
 
     // Run the shell
-    // shell_main();
+    shell_main();
 
     while (1);
 }

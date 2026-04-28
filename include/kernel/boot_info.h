@@ -11,6 +11,10 @@ struct LBootInfo {
     uint32_t magic;         // Bootloader magic number for verification
     uint32_t addr;          // Kernel address
     uint32_t memory_size;   // How much memory we actually have. This is set by the bootloader
+
+    // Memory Map
+    uint32_t mmap_addr;
+    uint32_t mmap_count;
 };
 
 struct LFramebufferInfo {
@@ -20,5 +24,12 @@ struct LFramebufferInfo {
     uint32_t pitch;         // Bytes per Row
     uint32_t bpp;           // Bits per Pixel
 };
+
+typedef struct {
+    uint64_t base;
+    uint64_t length;
+    uint32_t type;      // 1 = usable, 2 = reserved, etc.
+    uint32_t acpi;
+} __attribute__((packed)) e820_entry_t;
 
 #endif      // BOOT_INFO_H

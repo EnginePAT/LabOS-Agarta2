@@ -18,7 +18,8 @@ void ext2_init()
     // Read superblock
     // NOTE: The superblock is always at byte 1024 (sector 2)
     uint8_t sb_buf[1024];
-    ata_read28(2, sb_buf, EXT2_DISK_DRIVE);
+    ata_read28(2, sb_buf, EXT2_DISK_DRIVE);       // first 512 bytes
+    ata_read28(3, sb_buf + 512, EXT2_DISK_DRIVE); // second 512 bytes
 
     // Copy superblock (can't use pointer directly, stack gets clobbered)
     memcpy(sb_buf, (uint8_t*)&sb, (int)sizeof(struct ext2_super_block));
@@ -42,8 +43,12 @@ void ext2_init()
     uint32_t bgdt_block = (block_size == 1024) ? 2 : 1;
 
     uint8_t bgdt_buf[1024];
-    ata_read28(bgdt_block * sectors_per_block, bgdt_buf, EXT2_DISK_DRIVE);
-    memcpy(bgdt_buf, (uint8_t*)&bgd, (int)sizeof(struct ext2_block_group_desc));
+    uint32_t sector = bgdt_block * sectors_per_block;
+
+    ata_read28(sector, bgdt_buf, EXT2_DISK_DRIVE);
+    ata_read28(sector + 1, bgdt_buf + 512, EXT2_DISK_DRIVE);
+
+    memcpy(bgdt_buf, &bgd, sizeof(bgd));
 
     vga_print("EXT2 mounted!\n");
 
@@ -71,13 +76,15 @@ struct ext2_inode_table read_inode(uint32_t inode_num)
     uint32_t byte_offset = inode_offset * sb.s_inode_size;
 
     uint8_t buf[1024];
-    ata_read28(sector, buf, EXT2_DISK_DRIVE);
-    memcpy(buf + byte_offset, (uint8_t*)&inode_t, (int)sizeof(struct ext2_inode_table));
+    ata_read28(sector,     buf,       EXT2_DISK_DRIVE);
+    ata_read28(sector + 1, buf + 512, EXT2_DISK_DRIVE);
+
+    memcpy(buf + byte_offset, (uint8_t*)&inode_t, sizeof(struct ext2_inode_table));
+    // ABI: src = buf + byte_offset, dest = &inode_t
 
     return inode_t;
 }
 
-// Change return type to uint32_t
 uint32_t ext2_find_entry(uint32_t dir_inode, const char* name)
 {
     struct ext2_inode_table inode_t = read_inode(dir_inode);
@@ -85,7 +92,10 @@ uint32_t ext2_find_entry(uint32_t dir_inode, const char* name)
     uint32_t data_block = blocks[0];
 
     uint8_t buf[1024];
-    ata_read28(data_block * sectors_per_block, buf, EXT2_DISK_DRIVE);
+    uint32_t sector = data_block * sectors_per_block;
+
+    ata_read28(sector,     buf,       EXT2_DISK_DRIVE);
+    ata_read28(sector + 1, buf + 512, EXT2_DISK_DRIVE);
 
     int pos = 0;
     while (pos < block_size)
@@ -96,15 +106,15 @@ uint32_t ext2_find_entry(uint32_t dir_inode, const char* name)
         if (entry->inode != 0)
         {
             char ename[256];
-            memcpy(entry->name, ename, entry->name_len);
+            memcpy(entry->name, ename, entry->name_len);  // src = entry->name, dest = ename
             ename[entry->name_len] = '\0';
 
             if (strcmp(ename, name) == 0)
-                return entry->inode;   // return inode number!
+                return entry->inode;
         }
         pos += entry->rec_len;
     }
-    return 0;  // not found
+    return 0;       // Not found
 }
 
 void read_entries(uint32_t inode_num)
@@ -123,7 +133,6 @@ void read_entries(uint32_t inode_num)
 
         if (entry->inode != 0)
         {
-            serial_print("Entry name: ");
 
             char name[256];
             memcpy(entry->name, name, entry->name_len);    // Copy name bytes
@@ -131,7 +140,6 @@ void read_entries(uint32_t inode_num)
 
             serial_print(name);
             serial_print("\r\n");
-            serial_print("\n");
         }
         pos += entry->rec_len;
     }

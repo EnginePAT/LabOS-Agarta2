@@ -3,6 +3,7 @@ section .text
 
 bits 16
 extern stage2_main
+jmp short _start
 
 
 CODE_SEG equ gdt_code - gdt
@@ -45,11 +46,20 @@ _start:
     mov [vesa_bpp], al
 
     ; Set the size of memory map in EAX
-    mov ax, 0xe820
+    mov ax, 0xe801
     int 0x15
+    ; ax = KB between 1MB-16MB, bx = 64KB chunks above 16MB
+    ; Combine them for total extended memory
+    movzx eax, ax
+    shl ebx, 6          ; bx * 64 = KB above 16MB
+    add eax, ebx
+    add eax, 1024       ; add first 1MB
+    shl eax, 10         ; convert KB to bytes
+    mov [mem_size], eax
     mov [mem_size], eax
 
-    ; Start protected mode
+    ; Get the memory map and jump to protected mode
+    call get_memory_map
     jmp start_pm
 .vesa_error:
     mov si, msg_nvesa
@@ -67,6 +77,28 @@ print:
     int 0x10
     jmp .loop
 .done:
+    ret
+
+
+get_memory_map:
+    mov di, 0x6000
+    xor ebx, ebx
+    xor bp, bp
+.loop:
+    mov eax, 0xE820
+    mov ecx, 24
+    mov edx, 0x534D4150
+    int 0x15
+    jc .done
+    cmp eax, 0x534D4150
+    jne .done
+    inc bp              ; count it
+    add di, 24          ; advance buffer
+    test ebx, ebx       ; NOW check if last entry
+    jz .done
+    jmp .loop
+.done:
+    mov [mmap_count], bp
     ret
 
 
@@ -92,11 +124,16 @@ PModeMain:
     mov ebp, 0x90000
     mov esp, ebp
 
+    ; LFramebufferInfo (bottom -> top)
     push dword [vesa_bpp]
     push dword [vesa_pitch]
     push dword [vesa_height]
     push dword [vesa_width]
     push dword [vesa_fb]
+
+    ; LBootInfo (bottom -> top)
+    push dword 0x6000
+    push dword [mmap_count]
     push dword [mem_size]
     push dword 0x1000           ; Where we are loaded in memory
     push dword 0x2BADB002       ; magic
@@ -112,7 +149,9 @@ vesa_height:    dd 0
 vesa_pitch:     dd 0
 vesa_fb:        dd 0
 vesa_bpp:       dd 0
+
 mem_size:       dd 0
+mmap_count:     dd 0
 
 
 gdt:

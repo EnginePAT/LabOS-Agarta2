@@ -129,7 +129,7 @@ void* memcpy(void* dest, const void* src, int n)
     return dest;
 }
 
-extern void stage2_main(uint32_t magic, uint32_t addr, uint32_t msize, uint32_t fb, uint32_t width, uint32_t height, uint32_t pitch, uint32_t bpp)
+extern void stage2_main(uint32_t magic, uint32_t addr, uint32_t msize, uint32_t mmap_count, uint32_t mmap_addr, uint32_t fb, uint32_t width, uint32_t height, uint32_t pitch, uint32_t bpp)
 {
     serial_init();
     serial_print("Stage2 started\r\n");
@@ -210,6 +210,8 @@ extern void stage2_main(uint32_t magic, uint32_t addr, uint32_t msize, uint32_t 
     boot_info->magic       = magic;
     boot_info->addr        = 0x1000;
     boot_info->memory_size = msize;
+    boot_info->mmap_count  = mmap_count;
+    boot_info->mmap_addr   = mmap_addr;
 
     fb_info->framebuffer = fb;
     fb_info->width       = width;

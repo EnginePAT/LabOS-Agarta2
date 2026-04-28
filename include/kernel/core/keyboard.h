@@ -24,6 +24,7 @@ static const char keymap_shift[128] = {
 };
 
 extern volatile int command_ready; // The shell will watch this
+extern char character;
 
 void keyboard_init();
 char* keyboard_get_command();

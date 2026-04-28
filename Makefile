@@ -45,6 +45,7 @@ $(BUILD_DIR)/labos-agarta.img: stage1 stage2 kernel | always
 	e2mkdir ext2.img:/Frameworks
 	e2mkdir ext2.img:/Apps
 	e2cp test.txt ext2.img:/test.txt
+	e2cp LabOS-Mascot.bmp ext2.img:/etc/LabOS-Mascot.bmp
 
 
 #
