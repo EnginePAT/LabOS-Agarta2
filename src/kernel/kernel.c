@@ -3,11 +3,12 @@
 #include <kernel/core/keyboard.h>
 #include <kernel/boot_info.h>
 
-#include <kernel/mm/gdt.h>
-#include <kernel/mm/idt.h>
-#include <kernel/mm/pic.h>
-#include <kernel/mm/pmm.h>
-#include <kernel/mm/vmm.h>
+#include <kernel/core/mm/gdt.h>
+#include <kernel/core/mm/idt.h>
+#include <kernel/core/mm/pic.h>
+#include <kernel/core/mm/pmm.h>
+#include <kernel/core/mm/vmm.h>
+#include <kernel/core/mm/memory.h>
 
 #include <kernel/fs/ext2.h>
 #include <kernel/core/shell.h>
@@ -42,7 +43,7 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
 
     pmm_init(safe_boot_info.memory_size, mmap, safe_boot_info.mmap_count);
     vmm_init(fb_info);
-    vga_print("Testing...");
+    heap_init(0x200000, 0x100000);
 
     // // Initialize the keyboard and eventually the mouse!
     keyboard_init();

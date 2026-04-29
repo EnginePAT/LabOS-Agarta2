@@ -1,4 +1,4 @@
-#include <kernel/mm/gdt.h>
+#include <kernel/core/mm/gdt.h>
 #include <util/util.h>
 #include <util/mem.h>
 

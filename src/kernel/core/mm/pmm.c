@@ -1,4 +1,4 @@
-#include <kernel/mm/pmm.h>
+#include <kernel/core/mm/pmm.h>
 #include <util/mem.h>
 #include <stdint.h>
 #include <kernel/core/vga/serial.h>

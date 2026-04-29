@@ -2,7 +2,7 @@
 #include <util/mem.h>
 #include <util/util.h>
 #include <kernel/core/vga/vga.h>
-#include <kernel/mm/idt.h>
+#include <kernel/core/mm/idt.h>
 
 struct idt_entry_struct idt_entries[256];
 struct idt_ptr_struct idt_ptr;

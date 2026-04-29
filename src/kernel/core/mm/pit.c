@@ -1,5 +1,5 @@
-#include <kernel/mm/pic.h>
-#include <kernel/mm/idt.h>
+#include <kernel/core/mm/pic.h>
+#include <kernel/core/mm/idt.h>
 #include <util/mem.h>
 #include <util/util.h>
 

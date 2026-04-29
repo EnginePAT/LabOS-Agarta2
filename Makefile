@@ -94,7 +94,7 @@ kernel: $(KERNEL_DIR)/kernel.bin
 KERNEL_OBJS=$(KERNEL_DIR)/kernel_entry.o $(KERNEL_DIR)/kernel.o $(KERNEL_DIR)/util.o $(KERNEL_DIR)/vga.o $(KERNEL_DIR)/keyboard.o \
 	$(KERNEL_DIR)/gdt.o $(KERNEL_DIR)/gdt_s.o $(KERNEL_DIR)/mem.o $(KERNEL_DIR)/idt_s.o $(KERNEL_DIR)/idt.o $(KERNEL_DIR)/pit.o \
 	$(KERNEL_DIR)/ata.o $(KERNEL_DIR)/ext2.o $(KERNEL_DIR)/serial.o $(KERNEL_DIR)/shell.o $(KERNEL_DIR)/mouse.o $(KERNEL_DIR)/pmm.o \
-	$(KERNEL_DIR)/vmm.o
+	$(KERNEL_DIR)/vmm.o $(KERNEL_DIR)/memory.o
 
 $(KERNEL_DIR)/kernel.bin: $(KERNEL_OBJS) | always
 	$(LD) -T $(SRC_DIR)/kernel.ld $^ -o $@ --oformat binary
@@ -151,6 +151,9 @@ $(KERNEL_DIR)/pmm.o: $(SRC_DIR)/kernel/core/mm/pmm.c | always
 	$(CC) $(CFLAGS) $< -o $@
 
 $(KERNEL_DIR)/vmm.o: $(SRC_DIR)/kernel/core/mm/vmm.c | always
+	$(CC) $(CFLAGS) $< -o $@
+
+$(KERNEL_DIR)/memory.o: $(SRC_DIR)/kernel/core/mm/memory.c | always
 	$(CC) $(CFLAGS) $< -o $@
 
 

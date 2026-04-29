@@ -1,7 +1,7 @@
 #include <kernel/core/vga/vga.h>
 #include <util/util.h>
 #include <kernel/core/keyboard.h>
-#include <kernel/mm/idt.h>
+#include <kernel/core/mm/idt.h>
 #include <util/util.h>
 #include <stdint.h>
 

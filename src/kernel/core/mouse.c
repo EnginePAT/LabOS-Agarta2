@@ -1,6 +1,6 @@
 #include <kernel/core/mouse.h>
 #include <util/util.h>
-#include <kernel/mm/idt.h>
+#include <kernel/core/mm/idt.h>
 #include <kernel/core/vga/vga.h>
 
 void mouse_irq(struct InterruptRegisters* regs);

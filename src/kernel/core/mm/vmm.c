@@ -1,5 +1,5 @@
-#include <kernel/mm/vmm.h>
-#include <kernel/mm/pmm.h>
+#include <kernel/core/mm/vmm.h>
+#include <kernel/core/mm/pmm.h>
 #include <util/mem.h>
 #include <kernel/core/vga/serial.h>
 #include <stdint.h>
@@ -36,6 +36,12 @@ void vmm_init(struct LFramebufferInfo* fb_info)
     uint32_t fb_start = fb_info->framebuffer;
     uint32_t fb_size  = fb_info->pitch * fb_info->height;
     for (uint32_t addr = fb_start; addr < fb_start + fb_size; addr += PAGE_SIZE)
+    {
+        vmm_map_page(current_dir, addr, addr, PAGE_PRESENT | PAGE_WRITEABLE);
+    }
+
+    // Map heap region (2MB - 3MB)
+    for (uint32_t addr = 0x200000; addr < 0x300000; addr += PAGE_SIZE)
     {
         vmm_map_page(current_dir, addr, addr, PAGE_PRESENT | PAGE_WRITEABLE);
     }
