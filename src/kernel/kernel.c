@@ -15,6 +15,9 @@
 #include <kernel/core/mouse.h>
 #include <util/mem.h>
 
+// Userspace
+#include <userspace/userspace.h>
+
 void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
 {
     // Copy boot info to safe kernel memory before vmm_init

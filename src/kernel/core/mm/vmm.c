@@ -46,6 +46,12 @@ void vmm_init(struct LFramebufferInfo* fb_info)
         vmm_map_page(current_dir, addr, addr, PAGE_PRESENT | PAGE_WRITEABLE);
     }
 
+    // Map the kernel stack region (e.g., 0x80000 to 0x90000)
+    for (uint32_t addr = 0x80000; addr < 0x91000; addr += PAGE_SIZE)
+    {
+        vmm_map_page(current_dir, addr, addr, PAGE_PRESENT | PAGE_WRITEABLE);
+    }
+
     serial_print("VMM: fb mapped ");
     serial_print_hex(fb_start);
     serial_print(" size=");
