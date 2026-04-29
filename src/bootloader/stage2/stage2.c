@@ -245,6 +245,10 @@ extern void stage2_main(uint32_t magic, uint32_t addr, uint32_t msize, uint32_t 
     fb_info->pitch       = pitch;
     fb_info->bpp         = bpp;
 
+    serial_print("PRE-JUMP: mmap_count=");
+    serial_print_hex(boot_info->mmap_count);
+    serial_print("\n");
+
     typedef void (*KernelEntry)(struct LBootInfo*, struct LFramebufferInfo*);
     KernelEntry kernel_entry = (KernelEntry)kernel_addr;
     kernel_entry(boot_info, fb_info);

@@ -6,7 +6,6 @@
 uint16_t* video = (uint16_t*)0xb8000;
 static int cursor_x = 0;
 static int cursor_y = 0;
-int min_cursor_x = 13 * FONT_WIDTH;              // The size of the prompt '[Agarta]: ~$ '
 struct LFramebufferInfo* _fb_info;
 
 void setFbInfo(struct LFramebufferInfo* info)
@@ -60,7 +59,7 @@ void vga_putchar(char c)
         cursor_x = 0;
     } else if (c == '\b')
     {
-        if (cursor_x > min_cursor_x)
+        if (cursor_x > 0)
         {
             cursor_x -= FONT_WIDTH;
         }// } else if (cursor_y > 0)
@@ -132,9 +131,10 @@ void fb_print(const char* s, int x, int y, uint32_t fg, uint32_t bg)
 }
 
 void vga_clear(void) {
-    for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++)
-    {
-        video[i] = (0x0f << 8) | ' ';
-    }
+    uint32_t* fb = (uint32_t*)_fb_info->framebuffer;
+    uint32_t pitch_pixels = _fb_info->pitch / 4;
+    for (int y = 0; y < _fb_info->height; y++)
+        for (int x = 0; x < _fb_info->width; x++)
+            fb[y * pitch_pixels + x] = 0x00000000;
     cursor_x = cursor_y = 0;
 }

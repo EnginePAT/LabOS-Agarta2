@@ -1,43 +1,48 @@
 #include <kernel/mm/pmm.h>
 #include <util/mem.h>
 #include <stdint.h>
+#include <kernel/core/vga/serial.h>
 
 #define BITMAP_ADDR 0x10000
-#define BIT_SET(idx)            (bitmap[(idx) / 8] != (1 << ((idx) % 8)))
+#define BIT_SET(idx)            (bitmap[(idx) / 8] |= (1 << ((idx) % 8)))
 #define BIT_CLEAR(idx)          (bitmap[(idx) / 8] &= ~(1 << ((idx) % 8)))
 #define BIT_TEST(idx)           (bitmap[(idx) / 8] &   (1 << ((idx) % 8)))
 
 static uint32_t BITMAP_SIZE;
 static uint8_t* bitmap;
 
-extern uint8_t _kernel_start;
-extern uint8_t _kernel_end;
-
 static void pmm_free_region(uint32_t base, uint32_t length);
 static void pmm_reserve_region(uint32_t base, uint32_t length);
 
 void pmm_init(uint32_t msize, e820_entry_t* mmap, uint32_t mmap_count)
 {
-    // Bitmap Size = (memory size / sizeof page) / 8 bpp
     BITMAP_SIZE = (msize / PAGE_SIZE) / 8;
     bitmap = (uint8_t*)BITMAP_ADDR;
-    memset(bitmap, 0xFF, BITMAP_SIZE);          // Mark everything used
+    memset(bitmap, 0xFF, BITMAP_SIZE);
 
-    // TODO: Mark free regions from the memory map
-    // Free usable regions
+    serial_print("PMM: bitmap_size="); serial_print_hex(BITMAP_SIZE);
+    serial_print("\nPMM: kernel_start="); serial_print_hex((uint32_t)&_kernel_start);
+    serial_print("\nPMM: kernel_end="); serial_print_hex((uint32_t)&_kernel_end);
+    serial_print("\n");
+
     for (uint32_t i = 0; i < mmap_count; i++)
     {
         if (mmap[i].type == 1)
         {
-            // The region is usable and we can free it
+            serial_print("PMM: freeing "); serial_print_hex(mmap[i].base_low);
+            serial_print(" len="); serial_print_hex(mmap[i].length_low);
+            serial_print("\n");
             pmm_free_region(mmap[i].base_low, mmap[i].length_low);
         }
     }
 
-    // Re-reserve critical regions
-    pmm_reserve_region(0x0000, 0x1000);             // This is where out bootloader & GDT are - very important to not overwrite this
-    pmm_reserve_region(BITMAP_ADDR, BITMAP_SIZE);   // Also important we don't overwrite our memory map!
-    pmm_reserve_region(_kernel_start, _kernel_end); // Kernel image area
+    serial_print("PMM: reserving kernel\n");
+    // pmm_reserve_region(0x0000, 0x1000);
+    // pmm_reserve_region(0x1000, 0x8000);   // Stage2 lives here
+    pmm_reserve_region(0x0000, BITMAP_ADDR);
+    pmm_reserve_region(BITMAP_ADDR, BITMAP_SIZE);
+    pmm_reserve_region((uint32_t)&_kernel_start, (uint32_t)&_kernel_end - (uint32_t)&_kernel_start);
+    serial_print("PMM: done\n");
 }
 
 static void pmm_free_region(uint32_t base, uint32_t length)
@@ -60,4 +65,24 @@ static void pmm_reserve_region(uint32_t base, uint32_t length)
     {
         BIT_SET(i);
     }
+}
+
+uint32_t pmm_alloc()
+{
+    for (uint32_t i = 0; i < BITMAP_SIZE * 8; i++)
+    {
+        if (!BIT_TEST(i))
+        {
+            BIT_SET(i);
+            return i * PAGE_SIZE;
+        }
+    }
+
+    asm volatile("cli; hlt");
+    return 0;   // out of memory
+}
+
+void pmm_free(uint32_t addr)
+{
+    BIT_CLEAR(addr / PAGE_SIZE);
 }

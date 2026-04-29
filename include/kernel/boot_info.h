@@ -13,8 +13,8 @@ struct LBootInfo {
     uint32_t memory_size;   // How much memory we actually have. This is set by the bootloader
 
     // Memory Map
-    uint32_t mmap_addr;
     uint32_t mmap_count;
+    uint32_t mmap_addr;
 };
 
 struct LFramebufferInfo {
