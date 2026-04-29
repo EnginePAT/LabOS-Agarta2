@@ -60,6 +60,12 @@ _start:
 
     ; Get the memory map and jump to protected mode
     call get_memory_map
+
+    ; Dump first 4 bytes at 0x6000 to verify
+    ; mov eax, [0x6000]
+    ; ; store in a variable you already print in PModeMain
+    ; mov [mem_size], eax   ; temporarily hijack mem_size to see raw bytes
+
     jmp start_pm
 .vesa_error:
     mov si, msg_nvesa
@@ -81,19 +87,21 @@ print:
 
 
 get_memory_map:
+    xor ax, ax
+    mov es, ax
     mov di, 0x6000
     xor ebx, ebx
     xor bp, bp
 .loop:
     mov eax, 0xE820
-    mov ecx, 24
+    mov ecx, 20
     mov edx, 0x534D4150
     int 0x15
     jc .done
     cmp eax, 0x534D4150
     jne .done
     inc bp              ; count it
-    add di, 24          ; advance buffer
+    add di, 20          ; advance buffer
     test ebx, ebx       ; NOW check if last entry
     jz .done
     jmp .loop

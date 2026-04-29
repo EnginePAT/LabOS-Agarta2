@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <util/util.h>
 #include "disk/ata.h"
+#include "kernel/core/vga/serial.h"
 #include "serial.h"
 #include <kernel/boot_info.h>
 
@@ -134,6 +135,31 @@ extern void stage2_main(uint32_t magic, uint32_t addr, uint32_t msize, uint32_t 
     serial_init();
     serial_print("Stage2 started\r\n");
     print("Stage 2 bootloader started!");
+
+    serial_print("Memory size: ");
+    serial_print_hex(msize);
+    serial_print("\n");
+
+    serial_print("\r\n--- Memory Map Dump ---\r\n");
+    serial_print("Count: ");
+    serial_print_hex(mmap_count);
+    serial_print("\r\n");
+
+    struct e820_entry_t* mmap = (struct e820_entry_t*)mmap_addr;
+
+    for (uint32_t i = 0; i < mmap_count; i++) {
+        serial_print("Entry ");
+        serial_print_hex(i);
+
+        serial_print(": Base: ");
+        serial_print_hex(mmap[i].base_low);
+        serial_print(" Length: ");
+        serial_print_hex(mmap[i].length_low);
+        serial_print(" Type: ");
+        serial_print_hex(mmap[i].type);
+        serial_print("\r\n");
+    }
+    serial_print("-----------------------\r\n");
 
     uint8_t buffer[512];
     ata_read28(0, buffer, 0);

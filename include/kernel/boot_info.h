@@ -25,11 +25,12 @@ struct LFramebufferInfo {
     uint32_t bpp;           // Bits per Pixel
 };
 
-typedef struct {
-    uint64_t base;
-    uint64_t length;
+typedef struct e820_entry_t {
+    uint32_t base_low;
+    uint32_t base_high;
+    uint32_t length_low;
+    uint32_t length_high;
     uint32_t type;      // 1 = usable, 2 = reserved, etc.
-    uint32_t acpi;
 } __attribute__((packed)) e820_entry_t;
 
 #endif      // BOOT_INFO_H
