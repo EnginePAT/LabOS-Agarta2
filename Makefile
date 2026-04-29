@@ -92,7 +92,7 @@ $(BOOTLOADER_DIR)/serial.o: $(SRC_DIR)/bootloader/stage2/serial.c | always
 kernel: $(KERNEL_DIR)/kernel.bin
 
 KERNEL_OBJS=$(KERNEL_DIR)/kernel_entry.o $(KERNEL_DIR)/kernel.o $(KERNEL_DIR)/util.o $(KERNEL_DIR)/vga.o $(KERNEL_DIR)/keyboard.o \
-	$(KERNEL_DIR)/gdt.o $(KERNEL_DIR)/gdt_s.o $(KERNEL_DIR)/mem.o $(KERNEL_DIR)/idt_s.o $(KERNEL_DIR)/idt.o $(KERNEL_DIR)/pic.o \
+	$(KERNEL_DIR)/gdt.o $(KERNEL_DIR)/gdt_s.o $(KERNEL_DIR)/mem.o $(KERNEL_DIR)/idt_s.o $(KERNEL_DIR)/idt.o $(KERNEL_DIR)/pit.o \
 	$(KERNEL_DIR)/ata.o $(KERNEL_DIR)/ext2.o $(KERNEL_DIR)/serial.o $(KERNEL_DIR)/shell.o $(KERNEL_DIR)/mouse.o $(KERNEL_DIR)/pmm.o \
 	$(KERNEL_DIR)/vmm.o
 
@@ -123,19 +123,19 @@ $(KERNEL_DIR)/keyboard.o: $(SRC_DIR)/kernel/core/keyboard.c | always
 $(KERNEL_DIR)/mouse.o: $(SRC_DIR)/kernel/core/mouse.c | always
 	$(CC) $(CFLAGS) $< -o $@
 
-$(KERNEL_DIR)/gdt.o: $(SRC_DIR)/kernel/mm/gdt.c | always
+$(KERNEL_DIR)/gdt.o: $(SRC_DIR)/kernel/core/mm/gdt.c | always
 	$(CC) $(CFLAGS) $< -o $@
 
-$(KERNEL_DIR)/gdt_s.o: $(SRC_DIR)/kernel/mm/gdt.asm | always
+$(KERNEL_DIR)/gdt_s.o: $(SRC_DIR)/kernel/core/mm/gdt.asm | always
 	$(ASM) $< -f elf32 -o $@
 
-$(KERNEL_DIR)/idt.o: $(SRC_DIR)/kernel/mm/idt/idt.c | always
+$(KERNEL_DIR)/idt.o: $(SRC_DIR)/kernel/core/mm/idt/idt.c | always
 	$(CC) $(CFLAGS) $< -o $@
 
-$(KERNEL_DIR)/idt_s.o: $(SRC_DIR)/kernel/mm/idt/idt.asm | always
+$(KERNEL_DIR)/idt_s.o: $(SRC_DIR)/kernel/core/mm/idt/idt.asm | always
 	$(ASM) $< -f elf32 -o $@
 
-$(KERNEL_DIR)/pic.o: $(SRC_DIR)/kernel/mm/pic.c | always
+$(KERNEL_DIR)/pit.o: $(SRC_DIR)/kernel/core/mm/pit.c | always
 	$(CC) $(CFLAGS) $< -o $@
 
 $(KERNEL_DIR)/ata.o: $(SRC_DIR)/kernel/disk/ata.c | always
@@ -147,10 +147,10 @@ $(KERNEL_DIR)/ext2.o: $(SRC_DIR)/kernel/fs/ext2.c | always
 $(KERNEL_DIR)/shell.o: $(SRC_DIR)/kernel/core/shell.c | always
 	$(CC) $(CFLAGS) $< -o $@
 
-$(KERNEL_DIR)/pmm.o: $(SRC_DIR)/kernel/mm/pmm.c | always
+$(KERNEL_DIR)/pmm.o: $(SRC_DIR)/kernel/core/mm/pmm.c | always
 	$(CC) $(CFLAGS) $< -o $@
 
-$(KERNEL_DIR)/vmm.o: $(SRC_DIR)/kernel/mm/vmm.c | always
+$(KERNEL_DIR)/vmm.o: $(SRC_DIR)/kernel/core/mm/vmm.c | always
 	$(CC) $(CFLAGS) $< -o $@
 
 
