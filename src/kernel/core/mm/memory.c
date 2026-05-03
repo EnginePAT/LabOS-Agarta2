@@ -1,5 +1,4 @@
 #include <kernel/core/mm/memory.h>
-#include <stddef.h>
 
 typedef struct block_header {
     size_t size;

@@ -1,4 +1,5 @@
 global jump_usermode
+global usermode_test
 
 jump_usermode:
     mov ax, 0x23                ; User data segment

@@ -54,6 +54,7 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
     // float x = 2 / 0;            // We can't do this without getting an infinite result - should trigger a fault
 
     ext2_init();
+    userspace_init();
 
     while (1);
 }

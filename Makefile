@@ -6,6 +6,10 @@ CC=i386-elf-gcc
 LD=i386-elf-ld
 QEMU=qemu-system-i386
 
+E2MDIR=e2mkdir
+E2MFS=mke2fs
+E2CPY=e2cp
+
 CFLAGS=-ffreestanding -nostdlib -m32 -Iinclude/ -g -c
 
 
@@ -26,6 +30,7 @@ TOOLS_DIR=tools
 all: mtools $(BUILD_DIR)/labos-agarta.img
 
 $(BUILD_DIR)/labos-agarta.img: stage1 stage2 kernel | always
+	@echo *** COPYING BOOTFS ***
 	dd if=$(BOOTLOADER_DIR)/boot.bin of=$@ conv=notrunc
 	./tools/mkfs.labfs $@
 	./tools/mdir.labfs $@ boot /boot
@@ -34,25 +39,27 @@ $(BUILD_DIR)/labos-agarta.img: stage1 stage2 kernel | always
 	./tools/mcopy.labfs $@ $(KERNEL_DIR)/kernel.bin /boot/kernel.bin
 
 # Create the EXT2 image, and copy/create files onto it
-	mke2fs -t ext2 ext2.img 32M
-	e2mkdir ext2.img:/boot
-	e2mkdir ext2.img:/usr
-	e2mkdir ext2.img:/bin
-	e2mkdir ext2.img:/lib
-	e2mkdir ext2.img:/home
-	e2mkdir ext2.img:/var
-	e2mkdir ext2.img:/tmp
-	e2mkdir ext2.img:/etc
-	e2mkdir ext2.img:/Frameworks
-	e2mkdir ext2.img:/Apps
-	e2cp test.txt ext2.img:/test.txt
-	e2cp LabOS-Mascot.bmp ext2.img:/etc/LabOS-Mascot.bmp
+	@echo *** CREATING FILESYSTEM ***
+	$(E2MFS) -t ext2 ext2.img 32M
+	$(E2MDIR) ext2.img:/boot
+	$(E2MDIR) ext2.img:/usr
+	$(E2MDIR) ext2.img:/bin
+	$(E2MDIR) ext2.img:/lib
+	$(E2MDIR) ext2.img:/home
+	$(E2MDIR) ext2.img:/var
+	$(E2MDIR) ext2.img:/tmp
+	$(E2MDIR) ext2.img:/etc
+	$(E2MDIR) ext2.img:/Frameworks
+	$(E2MDIR) ext2.img:/Apps
+	$(E2CPY) test.txt ext2.img:/test.txt
+	$(E2CPY) LabOS-Mascot.bmp ext2.img:/etc/LabOS-Mascot.bmp
 
 
 #
 # Stage 1 Bootloader
 #
 stage1: $(BOOTLOADER_DIR)/boot.bin
+	@echo *** BUILD: STAGE 1 BOOTLOADER ***
 
 $(BOOTLOADER_DIR)/boot.bin: $(SRC_DIR)/bootloader/boot.asm | always
 	$(ASM) $< -f bin -o $@
@@ -64,7 +71,8 @@ $(BOOTLOADER_DIR)/zeroes.bin: $(SRC_DIR)/bootloader/zeroes.asm | always
 #
 # Stage 2 Bootloader
 #
-stage2: $(BOOTLOADER_DIR)/stage2.bin
+stage2:	$(BOOTLOADER_DIR)/stage2.bin
+	@echo *** BUILD: STAGE 2 BOOTLOADER ***
 
 STAGE2_OBJS=$(BOOTLOADER_DIR)/stage2_entry.o $(BOOTLOADER_DIR)/stage2.o $(BOOTLOADER_DIR)/util.o \
 	$(BOOTLOADER_DIR)/ata.o $(BOOTLOADER_DIR)/serial.o
@@ -90,12 +98,14 @@ $(BOOTLOADER_DIR)/serial.o: $(SRC_DIR)/bootloader/stage2/serial.c | always
 #
 # Kernel
 #
-kernel: $(KERNEL_DIR)/kernel.bin
+kernel:	$(KERNEL_DIR)/kernel.bin
+	@echo *** BUILD: KERNEL ***
 
 KERNEL_OBJS=$(KERNEL_DIR)/kernel_entry.o $(KERNEL_DIR)/kernel.o $(KERNEL_DIR)/util.o $(KERNEL_DIR)/vga.o $(KERNEL_DIR)/keyboard.o \
 	$(KERNEL_DIR)/gdt.o $(KERNEL_DIR)/gdt_s.o $(KERNEL_DIR)/mem.o $(KERNEL_DIR)/idt_s.o $(KERNEL_DIR)/idt.o $(KERNEL_DIR)/pit.o \
 	$(KERNEL_DIR)/ata.o $(KERNEL_DIR)/ext2.o $(KERNEL_DIR)/serial.o $(KERNEL_DIR)/shell.o $(KERNEL_DIR)/mouse.o $(KERNEL_DIR)/pmm.o \
-	$(KERNEL_DIR)/vmm.o $(KERNEL_DIR)/memory.o $(USER_DIR)/userspace.o $(USER_DIR)/userspace_s.o
+	$(KERNEL_DIR)/vmm.o $(KERNEL_DIR)/memory.o $(USER_DIR)/userspace.o $(USER_DIR)/userspace_s.o $(USER_DIR)/syscall_handler.o \
+	$(USER_DIR)/syscall_handler_s.o $(USER_DIR)/syscall.o
 
 $(KERNEL_DIR)/kernel.bin: $(KERNEL_OBJS) | always
 	$(LD) -T $(SRC_DIR)/kernel.ld $^ -o $@ --oformat binary
@@ -164,11 +174,21 @@ $(USER_DIR)/userspace.o: $(SRC_DIR)/userspace/userspace.c | always
 $(USER_DIR)/userspace_s.o: $(SRC_DIR)/userspace/userspace.asm | always
 	$(ASM) $< -f elf32 -o $@
 
+$(USER_DIR)/syscall_handler.o: $(SRC_DIR)/userspace/core/syscall_handler.c | always
+	$(CC) $(CFLAGS) $< -o $@
+
+$(USER_DIR)/syscall_handler_s.o: $(SRC_DIR)/userspace/core/syscall_handler.asm | always
+	$(ASM) $< -f elf32 -o $@
+
+$(USER_DIR)/syscall.o: $(SRC_DIR)/userspace/core/syscall.c | always
+	$(CC) $(CFLAGS) $< -o $@
 
 #
 # Tools
 #
 mtools: $(TOOLS_DIR)/mkfs.labfs $(TOOLS_DIR)/mcopy.labfs $(TOOLS_DIR)/mdir.labfs $(TOOLS_DIR)/mdump.labfs
+	@echo *** BUILD: LABFS MTOOLS ***
+	@echo \n
 
 $(TOOLS_DIR)/mkfs.labfs: $(TOOLS_DIR)/mkfs.labfs.c
 	gcc $< -o $@
