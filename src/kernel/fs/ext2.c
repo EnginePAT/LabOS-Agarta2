@@ -22,7 +22,7 @@ void ext2_init()
     ata_read28(3, sb_buf + 512, EXT2_DISK_DRIVE); // second 512 bytes
 
     // Copy superblock (can't use pointer directly, stack gets clobbered)
-    memcpy(sb_buf, (uint8_t*)&sb, (int)sizeof(struct ext2_super_block));
+    kmemcpy((uint8_t*)&sb, sb_buf, (int)sizeof(struct ext2_super_block));
 
     // Verify the superblock to ensure the filesystem is indeed EXT2
     if (sb.s_magic != EXT2_MAGIC)
@@ -30,6 +30,13 @@ void ext2_init()
         vga_print("ext2: invalid magic!\n");
         return;
     }
+
+    serial_print("sb_buf[0x38..0x48]: ");
+    for (int i = 0x38; i < 0x48; i++) {
+        serial_print_hex(sb_buf[i]);
+        serial_print(" ");
+    }
+    serial_print("\r\n");
 
     block_size = EXT2_BLOCK_SIZE(&sb);
     sectors_per_block = block_size / 512;           // 512 bytes per sector
@@ -48,7 +55,7 @@ void ext2_init()
     ata_read28(sector, bgdt_buf, EXT2_DISK_DRIVE);
     ata_read28(sector + 1, bgdt_buf + 512, EXT2_DISK_DRIVE);
 
-    memcpy(bgdt_buf, &bgd, sizeof(bgd));
+    kmemcpy(&bgd, bgdt_buf, sizeof(bgd));
 
     vga_print("EXT2 mounted!\n");
 
@@ -79,7 +86,7 @@ struct ext2_inode_table read_inode(uint32_t inode_num)
     ata_read28(sector,     buf,       EXT2_DISK_DRIVE);
     ata_read28(sector + 1, buf + 512, EXT2_DISK_DRIVE);
 
-    memcpy(buf + byte_offset, (uint8_t*)&inode_t, sizeof(struct ext2_inode_table));
+    kmemcpy((uint8_t*)&inode_t, buf + byte_offset, sizeof(struct ext2_inode_table));
     // ABI: src = buf + byte_offset, dest = &inode_t
 
     return inode_t;
@@ -106,7 +113,7 @@ uint32_t ext2_find_entry(uint32_t dir_inode, const char* name)
         if (entry->inode != 0)
         {
             char ename[256];
-            memcpy(entry->name, ename, entry->name_len);  // src = entry->name, dest = ename
+            kmemcpy(ename, entry->name, entry->name_len);  // src = entry->name, dest = ename
             ename[entry->name_len] = '\0';
 
             if (strcmp(ename, name) == 0)
@@ -124,7 +131,9 @@ void read_entries(uint32_t inode_num)
     uint32_t data_block = blocks[0];
 
     uint8_t buf[1024];
-    ata_read28(data_block * sectors_per_block, buf, EXT2_DISK_DRIVE);
+    for (int i = 0; i < sectors_per_block; i++) {
+        ata_read28(data_block * sectors_per_block + i, buf + (i * 512), EXT2_DISK_DRIVE);
+    }
 
     int pos = 0;
     while (pos < block_size)
@@ -135,7 +144,7 @@ void read_entries(uint32_t inode_num)
         {
 
             char name[256];
-            memcpy(entry->name, name, entry->name_len);    // Copy name bytes
+            kmemcpy(entry->name, name, entry->name_len);    // Copy name bytes
             name[entry->name_len] = '\0';                                   // Add null terminator
 
             serial_print(name);
@@ -160,7 +169,7 @@ void ext2_read_file(uint32_t inode_num, char* dest)
         ata_read28(blocks[block_idx] * sectors_per_block, buf, EXT2_DISK_DRIVE);
 
         uint32_t to_copy = bytes_left < block_size ? bytes_left : block_size;
-        memcpy(buf, ptr, to_copy);
+        kmemcpy(ptr, buf, to_copy);
         ptr += to_copy;
         bytes_left -= to_copy;
         block_idx++;

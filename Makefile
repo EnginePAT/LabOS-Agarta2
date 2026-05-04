@@ -40,7 +40,8 @@ $(BUILD_DIR)/labos-agarta.img: stage1 stage2 kernel | always
 
 # Create the EXT2 image, and copy/create files onto it
 	@echo *** CREATING FILESYSTEM ***
-	$(E2MFS) -t ext2 ext2.img 32M
+	dd if=/dev/zero of=ext2.img bs=1M count=64
+	mkfs.ext2 -b 1024 ext2.img
 	$(E2MDIR) ext2.img:/boot
 	$(E2MDIR) ext2.img:/usr
 	$(E2MDIR) ext2.img:/bin
@@ -229,4 +230,7 @@ always:
 # Run
 #
 run:
-	$(QEMU) -hda $(BUILD_DIR)/labos-agarta.img -hdb ext2.img -serial stdio
+	$(QEMU) \
+		-drive file=$(BUILD_DIR)/labos-agarta.img,format=raw,if=ide,index=0 \
+		-drive file=ext2.img,format=raw,if=ide,index=1 \
+		-serial stdio
