@@ -40,20 +40,20 @@ $(BUILD_DIR)/labos-agarta.img: stage1 stage2 kernel | always
 
 # Create the EXT2 image, and copy/create files onto it
 	@echo *** CREATING FILESYSTEM ***
-	dd if=/dev/zero of=ext2.img bs=1M count=64
-	mkfs.ext2 -b 1024 ext2.img
-	$(E2MDIR) ext2.img:/boot
-	$(E2MDIR) ext2.img:/usr
-	$(E2MDIR) ext2.img:/bin
-	$(E2MDIR) ext2.img:/lib
-	$(E2MDIR) ext2.img:/home
-	$(E2MDIR) ext2.img:/var
-	$(E2MDIR) ext2.img:/tmp
-	$(E2MDIR) ext2.img:/etc
-	$(E2MDIR) ext2.img:/Frameworks
-	$(E2MDIR) ext2.img:/Apps
-	$(E2CPY) test.txt ext2.img:/test.txt
-	$(E2CPY) LabOS-Mascot.bmp ext2.img:/etc/LabOS-Mascot.bmp
+	dd if=/dev/zero of=$(BUILD_DIR)/ext2.img bs=1M count=64
+	mkfs.ext2 -b 1024 $(BUILD_DIR)/ext2.img
+	$(E2MDIR) $(BUILD_DIR)/ext2.img:/boot
+	$(E2MDIR) $(BUILD_DIR)/ext2.img:/usr
+	$(E2MDIR) $(BUILD_DIR)/ext2.img:/bin
+	$(E2MDIR) $(BUILD_DIR)/ext2.img:/lib
+	$(E2MDIR) $(BUILD_DIR)/ext2.img:/home
+	$(E2MDIR) $(BUILD_DIR)/ext2.img:/var
+	$(E2MDIR) $(BUILD_DIR)/ext2.img:/tmp
+	$(E2MDIR) $(BUILD_DIR)/ext2.img:/etc
+	$(E2MDIR) $(BUILD_DIR)/ext2.img:/Frameworks
+	$(E2MDIR) $(BUILD_DIR)/ext2.img:/Apps
+	$(E2CPY) assets/test.txt $(BUILD_DIR)/ext2.img:/test.txt
+	$(E2CPY) assets/LabOS-Mascot.bmp $(BUILD_DIR)/ext2.img:/etc/LabOS-Mascot.bmp
 
 
 #
@@ -232,5 +232,5 @@ always:
 run:
 	$(QEMU) \
 		-drive file=$(BUILD_DIR)/labos-agarta.img,format=raw,if=ide,index=0 \
-		-drive file=ext2.img,format=raw,if=ide,index=1 \
+		-drive file=$(BUILD_DIR)/ext2.img,format=raw,if=ide,index=1 \
 		-serial stdio
