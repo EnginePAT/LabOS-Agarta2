@@ -1,15 +1,10 @@
 #include <kernel/core/mm/vmm.h>
-#include <kernel/core/mm/pmm.h>
 #include <util/mem.h>
 #include <kernel/core/vga/serial.h>
 #include <stdint.h>
 #include <userspace/userspace.h>
 
-#define USER_STACK_BASE 0x400000
-#define USER_STACK_TOP 0xC0000000
-
-static page_dir_t* current_dir;
-extern void usermode_test();
+page_dir_t* current_dir;
 
 void vmm_map_page(page_dir_t* dir, uint32_t virt, uint32_t phys, uint32_t flags)
 {
@@ -20,8 +15,11 @@ void vmm_map_page(page_dir_t* dir, uint32_t virt, uint32_t phys, uint32_t flags)
     if (!((*dir)[dir_idx] & PAGE_PRESENT))
     {
         uint32_t table_phys = pmm_alloc();
+        // table_phys must be in identity-mapped region or this memset corrupts memory
         memset((void*)table_phys, 0, PAGE_SIZE);
-        (*dir)[dir_idx] = table_phys | PAGE_PRESENT | PAGE_WRITEABLE;
+        (*dir)[dir_idx] = table_phys | PAGE_PRESENT | PAGE_WRITEABLE | PAGE_USER;
+        //                                                              ^^^ also needs USER flag
+        //                                                              for user mappings!
     }
 
     page_table_t* table = (page_table_t*)PAGE_FRAME((*dir)[dir_idx]);
@@ -58,7 +56,6 @@ void vmm_init(struct LFramebufferInfo* fb_info)
     }
 
     // Map the user pages & stack
-    vmm_map_page(current_dir, (uint32_t)usermode_test, (uint32_t)usermode_test, PAGE_WRITEABLE | PAGE_USER);
     for (uint32_t addr = 0xBFFFE000; addr < 0xC0000000; addr += PAGE_SIZE)
     {
         vmm_map_page(current_dir, addr, addr,

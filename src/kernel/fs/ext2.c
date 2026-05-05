@@ -8,7 +8,7 @@
 
 #define EXT2_DISK_DRIVE 1                   // Master 8, drive 1 (0x81)
 
-static struct ext2_super_block sb;
+struct ext2_super_block sb;
 static struct ext2_block_group_desc bgd;
 static uint32_t block_size;
 static uint32_t sectors_per_block;
@@ -58,16 +58,6 @@ void ext2_init()
     kmemcpy(&bgd, bgdt_buf, sizeof(bgd));
 
     vga_print("EXT2 mounted!\n");
-
-    // Read the root inode and get its data
-    uint32_t inode_num = ext2_find_entry(2, "test.txt");
-    if (inode_num != 0) {
-        char test[1024];
-        ext2_read_file(inode_num, test);
-        vga_print(test);
-    } else {
-        serial_print("Invalid read.\n");
-    }
 }
 
 struct ext2_inode_table read_inode(uint32_t inode_num)

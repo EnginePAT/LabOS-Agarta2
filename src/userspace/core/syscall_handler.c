@@ -2,10 +2,15 @@
 #include <stdint.h>
 #include <userspace/core/syscall_handler.h>
 #include <kernel/registers.h>
+#include <userspace/core/handlers/handlers.h>
 
 typedef int (*syscall_t)(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
 
-static syscall_t syscall_table[] = {};
+
+static syscall_t syscall_table[] = {
+    sys_exit_handler,
+    sys_write_handler,
+};
 
 void syscall_handler(registers_t* regs)
 {
@@ -26,7 +31,7 @@ void syscall_handler(registers_t* regs)
 void sys_exit(int code)
 {
     vga_print("Process exited with code: ");
-    vga_print((char*)code);
+    vga_print_hex(code);
     vga_print("\n");
 
     __asm__ volatile (

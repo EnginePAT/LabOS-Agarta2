@@ -4,11 +4,24 @@
 int exit(int code)
 {
     vga_print("Process exited with code: ");
-    vga_print((char*)code);
     vga_print("\n");
 
-    // For now, just halt the system
-    // Later this will call the scheduler to kill the process
+    __asm__ volatile (
+        "int $0x80"
+        :
+        : "a"(0), "b"(code)
+    );
     for (;;);
     return 0;
+}
+
+int write(int fd, const char *buf, unsigned int len)
+{
+    int ret;
+    __asm__ volatile (
+        "int $0x80"
+        : "=a"(ret)
+        : "a"(1), "b"(fd), "c"(buf), "d"(len)
+    );
+    return ret;
 }
