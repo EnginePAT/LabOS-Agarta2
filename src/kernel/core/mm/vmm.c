@@ -18,8 +18,6 @@ void vmm_map_page(page_dir_t* dir, uint32_t virt, uint32_t phys, uint32_t flags)
         // table_phys must be in identity-mapped region or this memset corrupts memory
         memset((void*)table_phys, 0, PAGE_SIZE);
         (*dir)[dir_idx] = table_phys | PAGE_PRESENT | PAGE_WRITEABLE | PAGE_USER;
-        //                                                              ^^^ also needs USER flag
-        //                                                              for user mappings!
     }
 
     page_table_t* table = (page_table_t*)PAGE_FRAME((*dir)[dir_idx]);
@@ -31,35 +29,48 @@ void vmm_init(struct LFramebufferInfo* fb_info)
     current_dir = (page_dir_t*)pmm_alloc();
     memset(current_dir, 0, PAGE_SIZE);
 
-    // Identity map kernel region
-    for (uint32_t addr = 0x1000; addr < (uint32_t)&_kernel_end; addr += PAGE_SIZE)
-        vmm_map_page(current_dir, addr, addr, PAGE_PRESENT | PAGE_WRITEABLE);
+    // Pre-allocate page tables for identity map (0x00000000 - 0x08000000) = 32 entries
+    for (uint32_t dir_idx = 0; dir_idx < 32; dir_idx++) {
+        uint32_t table_phys = pmm_alloc();
+        memset((void*)table_phys, 0, PAGE_SIZE);
+        (*current_dir)[dir_idx] = table_phys | PAGE_PRESENT | PAGE_WRITEABLE;
+    }
 
-    // Map framebuffer
+    // Pre-allocate page table for user stack region (0xBFFFC000 - 0xC0000000)
+    // dir_idx for 0xBFFFFFFF = 0x2FF = 767
+    {
+        uint32_t table_phys = pmm_alloc();
+        memset((void*)table_phys, 0, PAGE_SIZE);
+        (*current_dir)[767] = table_phys | PAGE_PRESENT | PAGE_WRITEABLE | PAGE_USER;
+    }
+
+    // Pre-allocate page table for framebuffer (0xFD000000)
+    // dir_idx = 0xFD000000 >> 22 = 0x3F4 = 1012
+    {
+        uint32_t table_phys = pmm_alloc();
+        memset((void*)table_phys, 0, PAGE_SIZE);
+        (*current_dir)[1012] = table_phys | PAGE_PRESENT | PAGE_WRITEABLE;
+    }
+
+    // Fill identity map PTEs directly
+    for (uint32_t addr = 0x1000; addr < 0x08000000; addr += PAGE_SIZE) {
+        uint32_t dir_idx   = PAGE_DIR_INDEX(addr);
+        uint32_t table_idx = PAGE_TABLE_INDEX(addr);
+        page_table_t* table = (page_table_t*)PAGE_FRAME((*current_dir)[dir_idx]);
+        (*table)[table_idx] = (addr & ~0xFFF) | PAGE_PRESENT | PAGE_WRITEABLE;
+    }
+
+    // Framebuffer — table already exists, vmm_map_page won't call pmm_alloc
     uint32_t fb_start = fb_info->framebuffer;
     uint32_t fb_size  = fb_info->pitch * fb_info->height;
     for (uint32_t addr = fb_start; addr < fb_start + fb_size; addr += PAGE_SIZE)
-    {
         vmm_map_page(current_dir, addr, addr, PAGE_PRESENT | PAGE_WRITEABLE);
-    }
 
-    // Map heap region (2MB - 3MB)
-    for (uint32_t addr = 0x200000; addr < 0x300000; addr += PAGE_SIZE)
-    {
-        vmm_map_page(current_dir, addr, addr, PAGE_PRESENT | PAGE_WRITEABLE);
-    }
-
-    // Map the kernel stack region (e.g., 0x80000 to 0x90000)
-    for (uint32_t addr = 0x80000; addr < 0x91000; addr += PAGE_SIZE)
-    {
-        vmm_map_page(current_dir, addr, addr, PAGE_PRESENT | PAGE_WRITEABLE);
-    }
-
-    // Map the user pages & stack
-    for (uint32_t addr = 0xBFFFE000; addr < 0xC0000000; addr += PAGE_SIZE)
-    {
-        vmm_map_page(current_dir, addr, addr,
-                    PAGE_WRITEABLE | PAGE_USER);
+    // User stack — table already exists, vmm_map_page won't call pmm_alloc
+    for (uint32_t i = 0; i < USER_STACK_PAGES; i++) {
+        uint32_t phys = pmm_alloc();  // these frames are in identity-mapped region
+        uint32_t virt = USER_STACK_TOP - (i + 1) * PAGE_SIZE;
+        vmm_map_page(current_dir, virt, phys, PAGE_USER | PAGE_WRITEABLE);
     }
 
     serial_print("VMM: fb mapped ");
@@ -75,5 +86,6 @@ void vmm_init(struct LFramebufferInfo* fb_info)
         "mov %%eax, %%cr0\n"
         :: "r"(current_dir) : "eax"
     );
+
     serial_print("VMM: paging enabled\n");
 }

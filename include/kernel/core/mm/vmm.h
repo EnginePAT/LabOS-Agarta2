@@ -16,6 +16,7 @@
 #define USER_STACK_BASE 0x400000
 #define USER_STACK_TOP 0xC0000000
 #define USER_CODE_BASE 0x00400000
+#define USER_STACK_PAGES 4
 
 typedef uint32_t page_dir_t[1024];
 typedef uint32_t page_table_t[1024];

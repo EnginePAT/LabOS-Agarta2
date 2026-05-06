@@ -37,6 +37,7 @@ static struct vfs_node* ext2_vfs_finddir(struct vfs_node* node, const char* name
     child.inode   = child_inode_num;
     child.fs_data = node->fs_data;
     struct ext2_inode_table ino = read_inode(child_inode_num);   // you likely already have this
+    child.size = ino.i_size;
 
     if (S_ISDIR(ino.i_mode)) {                // or (ino.i_mode & 0x4000)
         child.flags   = VFS_FLAG_DIR;

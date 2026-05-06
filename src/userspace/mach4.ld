@@ -1,7 +1,7 @@
 ENTRY(_start)
 
 SECTIONS {
-    . = 0;
+    . = 0x00400000;
 
     .mach4hdr : {
         *(.mach4hdr)

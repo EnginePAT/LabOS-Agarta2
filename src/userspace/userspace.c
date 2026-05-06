@@ -18,6 +18,6 @@ void userspace_init()
     // Call our assembly function which jumps to Ring 3
     jump_usermode();
 
-    sys_exit(0);
-    write(1, "Hello, world from userland!", 30);
+    // sys_exit(0);
+    // write(1, "Hello, world from userland!", 30);
 }
