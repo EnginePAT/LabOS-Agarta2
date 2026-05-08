@@ -56,21 +56,15 @@ static struct vfs_node* ext2_vfs_finddir(struct vfs_node* node, const char* name
 }
 
 static uint32_t ext2_vfs_read(struct vfs_node* node, uint32_t offset, uint32_t size, uint8_t* buffer) {
-    (void)size; // we’ll clamp based on actual length
-
     static uint8_t tmp[4096];
-
-    ext2_read_file(node->inode, (char*)tmp); // null-terminated
-
-    uint32_t len = 0;
-    while (tmp[len] != '\0') len++;
-
-    if (offset >= len)
-        return 0;
-
-    uint32_t avail = len - offset;
-    uint32_t to_copy = avail; // or clamp to caller's size if you want
-
+    ext2_read_file(node->inode, (char*)tmp);
+    
+    uint32_t len = node->size;  // use actual inode size, not strlen
+    if (offset >= len) return 0;
+    
+    uint32_t to_copy = len - offset;
+    if (to_copy > size) to_copy = size;  // respect caller's size limit
+    
     kmemcpy(buffer, tmp + offset, to_copy);
     return to_copy;
 }

@@ -1,3 +1,5 @@
+#include "kernel/core/vga/serial.h"
+#include "userspace/core/syscall_handler.h"
 #include <stdint.h>
 #include <util/mem.h>
 #include <util/util.h>
@@ -163,7 +165,22 @@ void panic(struct InterruptRegisters* regs, const char* message) {
     for (;;);
 }
 
-void isr_handler(struct InterruptRegisters* regs){
+void isr_handler(struct InterruptRegisters* regs)
+{
+    if (regs->int_no == 128)
+    {
+        serial_print("ecx (buf ptr) = ");
+        serial_print_hex(regs->ecx);
+        serial_print("\n");
+
+        serial_print("buf contents: ");
+        serial_print((char*)regs->ecx);
+        serial_print("\n");
+
+        syscall_handler(regs);
+        serial_print((char*)regs->ecx);
+        return;
+    }
     if (regs->int_no < 32){
         panic(regs, exception_messages[regs->int_no]);
     }

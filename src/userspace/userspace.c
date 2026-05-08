@@ -1,10 +1,8 @@
-#include "userspace/core/syscall.h"
+#include <kernel/core/mm/vmm.h>
 #include <kernel/core/vga/vga.h>
 #include <userspace/userspace.h>
 #include <kernel/core/mm/gdt.h>
 #include <userspace/core/syscall_handler.h>
-
-extern void jump_usermode();
 
 void userspace_init()
 {
@@ -16,7 +14,7 @@ void userspace_init()
     vga_print("Welcome to Userland!\n");
 
     // Call our assembly function which jumps to Ring 3
-    jump_usermode();
+    jump_usermode(USER_CODE_BASE, USER_STACK_TOP);
 
     // sys_exit(0);
     // write(1, "Hello, world from userland!", 30);

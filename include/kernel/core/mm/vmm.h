@@ -18,12 +18,14 @@
 #define USER_CODE_BASE 0x00400000
 #define USER_STACK_PAGES 4
 
-typedef uint32_t page_dir_t[1024];
-typedef uint32_t page_table_t[1024];
+// typedef uint32_t page_dir_t[1024];
+// typedef uint32_t page_table_t[1024];
 
-extern page_dir_t* current_dir;
+// extern page_dir_t* current_dir;
+extern uint32_t* current_dir;
 
 void vmm_init(struct LFramebufferInfo* fb_info);
-void vmm_map_page(page_dir_t* dir, uint32_t virt, uint32_t phys, uint32_t flags);
+void vmm_map_page(uint32_t* dir, uint32_t virt, uint32_t phys, uint32_t flags);
+void pmm_reserve_region(uint32_t base, uint32_t length);
 
 #endif      // VMM_H

@@ -4,36 +4,39 @@
 #include <stdint.h>
 #include <userspace/userspace.h>
 
-page_dir_t* current_dir;
+// page_dir_t* current_dir;
+uint32_t* current_dir;
 
-void vmm_map_page(page_dir_t* dir, uint32_t virt, uint32_t phys, uint32_t flags)
+void vmm_map_page(uint32_t* dir, uint32_t virt, uint32_t phys, uint32_t flags)
 {
-    uint32_t dir_idx    = PAGE_DIR_INDEX(virt);
-    uint32_t table_idx  = PAGE_TABLE_INDEX(virt);
+    uint32_t dir_idx   = PAGE_DIR_INDEX(virt);
+    uint32_t table_idx = PAGE_TABLE_INDEX(virt);
 
-    // If page table doesn't exist, allocate one
-    if (!((*dir)[dir_idx] & PAGE_PRESENT))
+    if (!(dir[dir_idx] & PAGE_PRESENT))
     {
         uint32_t table_phys = pmm_alloc();
-        // table_phys must be in identity-mapped region or this memset corrupts memory
         memset((void*)table_phys, 0, PAGE_SIZE);
-        (*dir)[dir_idx] = table_phys | PAGE_PRESENT | PAGE_WRITEABLE | PAGE_USER;
+        dir[dir_idx] = table_phys | PAGE_PRESENT | PAGE_WRITEABLE | PAGE_USER;
     }
 
-    page_table_t* table = (page_table_t*)PAGE_FRAME((*dir)[dir_idx]);
-    (*table)[table_idx] = PAGE_FRAME(phys) | flags | PAGE_PRESENT;
+    uint32_t* table = (uint32_t*)PAGE_FRAME(dir[dir_idx]);
+    table[table_idx] = PAGE_FRAME(phys) | flags | PAGE_PRESENT;
 }
 
 void vmm_init(struct LFramebufferInfo* fb_info)
 {
-    current_dir = (page_dir_t*)pmm_alloc();
+    current_dir = (uint32_t*)pmm_alloc();
     memset(current_dir, 0, PAGE_SIZE);
+
+    serial_print("VMM: current_dir phys = ");
+    serial_print_hex((uint32_t)current_dir);
+    serial_print("\n");
 
     // Pre-allocate page tables for identity map (0x00000000 - 0x08000000) = 32 entries
     for (uint32_t dir_idx = 0; dir_idx < 32; dir_idx++) {
         uint32_t table_phys = pmm_alloc();
         memset((void*)table_phys, 0, PAGE_SIZE);
-        (*current_dir)[dir_idx] = table_phys | PAGE_PRESENT | PAGE_WRITEABLE;
+        current_dir[dir_idx] = table_phys | PAGE_PRESENT | PAGE_WRITEABLE;
     }
 
     // Pre-allocate page table for user stack region (0xBFFFC000 - 0xC0000000)
@@ -41,7 +44,7 @@ void vmm_init(struct LFramebufferInfo* fb_info)
     {
         uint32_t table_phys = pmm_alloc();
         memset((void*)table_phys, 0, PAGE_SIZE);
-        (*current_dir)[767] = table_phys | PAGE_PRESENT | PAGE_WRITEABLE | PAGE_USER;
+        current_dir[767] = table_phys | PAGE_PRESENT | PAGE_WRITEABLE | PAGE_USER;
     }
 
     // Pre-allocate page table for framebuffer (0xFD000000)
@@ -49,15 +52,15 @@ void vmm_init(struct LFramebufferInfo* fb_info)
     {
         uint32_t table_phys = pmm_alloc();
         memset((void*)table_phys, 0, PAGE_SIZE);
-        (*current_dir)[1012] = table_phys | PAGE_PRESENT | PAGE_WRITEABLE;
+        current_dir[1012] = table_phys | PAGE_PRESENT | PAGE_WRITEABLE;
     }
 
     // Fill identity map PTEs directly
-    for (uint32_t addr = 0x1000; addr < 0x08000000; addr += PAGE_SIZE) {
+    for (uint32_t addr = 0; addr < 0x08000000; addr += PAGE_SIZE) {
         uint32_t dir_idx   = PAGE_DIR_INDEX(addr);
         uint32_t table_idx = PAGE_TABLE_INDEX(addr);
-        page_table_t* table = (page_table_t*)PAGE_FRAME((*current_dir)[dir_idx]);
-        (*table)[table_idx] = (addr & ~0xFFF) | PAGE_PRESENT | PAGE_WRITEABLE;
+        uint32_t* table = (uint32_t*)PAGE_FRAME(current_dir[dir_idx]);
+        table[table_idx] = (addr & ~0xFFF) | PAGE_PRESENT | PAGE_WRITEABLE;
     }
 
     // Framebuffer — table already exists, vmm_map_page won't call pmm_alloc
@@ -79,6 +82,7 @@ void vmm_init(struct LFramebufferInfo* fb_info)
     serial_print_hex(fb_size);
     serial_print("\n");
 
+    // while (1);
     asm volatile (
         "mov %0, %%cr3\n"
         "mov %%cr0, %%eax\n"

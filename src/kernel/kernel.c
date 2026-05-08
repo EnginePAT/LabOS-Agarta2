@@ -23,8 +23,6 @@
 // Userspace
 #include <userspace/userspace.h>
 
-extern void jump_usermode();
-
 void mach4_execute(uint32_t entry)
 {
     uint32_t user_stack = USER_STACK_TOP;
@@ -61,12 +59,10 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
     pmm_init(safe_boot_info.memory_size, mmap, safe_boot_info.mmap_count);
     vmm_init(fb_info);
     heap_init(0x200000, 0x100000);
+    pmm_reserve_region(0x200000, 0x100000);
 
-    // // Initialize the keyboard and eventually the mouse!
+    // Initialize the keyboard and eventually the mouse!
     keyboard_init();
-
-    // float x = 2 / 0;            // We can't do this without getting an infinite result - should trigger a fault
-
     ext2_init();
 
     vfs_root = ext2_mount_root();
@@ -74,8 +70,8 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
     vfs_node_t* n = vfs_open("/usr/system/userland.exe");
     uint8_t* program = kmalloc(n->size);
 
+    // Map enough pages for the whole file
     vfs_read(n, 0, n->size, program);
-    // map enough pages for the whole file
     uint32_t code_size  = n->size;
     uint32_t code_pages = (code_size + PAGE_SIZE - 1) / PAGE_SIZE;
     
@@ -84,17 +80,16 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
     serial_print("\n");
 
     for (uint32_t i = 0; i < code_pages; i++) {
-        uint32_t virt = USER_CODE_BASE + i * PAGE_SIZE;
-        uint32_t phys = pmm_alloc();
-        vmm_map_page(current_dir, virt, phys, PAGE_USER | PAGE_WRITEABLE);
-        
+        uint32_t virt   = USER_CODE_BASE + i * PAGE_SIZE;
+        uint32_t phys   = pmm_alloc();
         uint32_t offset = i * PAGE_SIZE;
-        uint32_t chunk  = PAGE_SIZE;
-        if (offset + chunk > n->size)
-            chunk = n->size - offset;
+        uint32_t chunk  = (offset + PAGE_SIZE > n->size) ? n->size - offset : PAGE_SIZE;
 
-        memcpy((void*)virt, program + offset, chunk);
+        kmemcpy((void*)phys, program + offset, chunk);
+        vmm_map_page(current_dir, virt, phys, PAGE_USER | PAGE_WRITEABLE);
     }
+    current_dir[PAGE_DIR_INDEX(USER_CODE_BASE)] |= PAGE_USER;
+    asm volatile("mov %%cr3, %%eax; mov %%eax, %%cr3" ::: "eax");
 
     serial_print("First dword at USER_CODE_BASE: ");
     serial_print_hex(*(uint32_t*)USER_CODE_BASE);

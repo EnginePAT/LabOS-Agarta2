@@ -1,7 +1,8 @@
+#include "kernel/core/vga/serial.h"
+#include "util/util.h"
 #include <kernel/core/vga/vga.h>
 #include <stdint.h>
 #include <userspace/core/syscall_handler.h>
-#include <kernel/registers.h>
 #include <userspace/core/handlers/handlers.h>
 
 typedef int (*syscall_t)(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
@@ -12,14 +13,22 @@ static syscall_t syscall_table[] = {
     sys_write_handler,
 };
 
-void syscall_handler(registers_t* regs)
+void syscall_handler(struct InterruptRegisters* regs)
 {
+    serial_print("SYSCALL: eax=");
+    serial_print_hex(regs->eax);
+    serial_print("\n");
+    
     // The syscall number is in EAX
     uint32_t syscall_num = regs->eax;
 
     if (syscall_num >= (sizeof(syscall_table) / sizeof(syscall_t)) || syscall_table[syscall_num] == NULL) {
         regs->eax = -1;         // Return an error if the syscall doesn't exist
         return;
+    }
+
+    if (syscall_num == 1) {
+        serial_print((char*)regs->ecx);
     }
 
     // Call the function from the table

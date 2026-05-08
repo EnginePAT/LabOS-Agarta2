@@ -91,3 +91,10 @@ run:
 	    -drive file=$(BUILD_DIR)/labos-agarta.img,format=raw,if=ide,index=0 \
 	    -drive file=$(BUILD_DIR)/ext2.img,format=raw,if=ide,index=1 \
 	    -serial stdio
+
+run_debug:
+	$(QEMU) \
+	    -drive file=$(BUILD_DIR)/labos-agarta.img,format=raw,if=ide,index=0 \
+	    -drive file=$(BUILD_DIR)/ext2.img,format=raw,if=ide,index=1 \
+	    -serial stdio \
+	    -s -S
