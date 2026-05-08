@@ -6,3 +6,8 @@ src/.DS_Store
 include/kernel/.DS_Store
 include/.DS_Store
 .DS_Store
+tools/mcopy.labfs
+tools/mdir.labfs
+tools/mdump.labfs
+tools/mkfs.labfs
+tools/LabFS-Lite
