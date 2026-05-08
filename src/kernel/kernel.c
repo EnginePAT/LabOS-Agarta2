@@ -70,6 +70,10 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
     vfs_node_t* n = vfs_open("/usr/system/userland.exe");
     uint8_t* program = kmalloc(n->size);
 
+    serial_print("n->size = ");
+    serial_print_hex(n->size);
+    serial_print("\n");
+
     // Map enough pages for the whole file
     vfs_read(n, 0, n->size, program);
     uint32_t code_size  = n->size;
@@ -89,7 +93,14 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
         vmm_map_page(current_dir, virt, phys, PAGE_USER | PAGE_WRITEABLE);
     }
     current_dir[PAGE_DIR_INDEX(USER_CODE_BASE)] |= PAGE_USER;
-    asm volatile("mov %%cr3, %%eax; mov %%eax, %%cr3" ::: "eax");
+    // asm volatile("mov %%cr3, %%eax; mov %%eax, %%cr3" ::: "eax");
+
+    // After the mapping loop
+    uint32_t pte = ((uint32_t*)PAGE_FRAME(current_dir[PAGE_DIR_INDEX(USER_CODE_BASE)]))[PAGE_TABLE_INDEX(USER_CODE_BASE)];
+    uint32_t phys_base = PAGE_FRAME(pte);
+    serial_print("string at phys+0x660: ");
+    serial_print((char*)(phys_base + 0x660));
+    serial_print("\n");
 
     serial_print("First dword at USER_CODE_BASE: ");
     serial_print_hex(*(uint32_t*)USER_CODE_BASE);
