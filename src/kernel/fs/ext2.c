@@ -161,16 +161,17 @@ void read_entries(uint32_t inode_num)
 void ext2_read_file(uint32_t inode_num, char* dest)
 {
     struct ext2_inode_table inode = read_inode(inode_num);
-    uint32_t* blocks = inode.i_block;
-
     uint32_t bytes_left = inode.i_size;
-    uint32_t block_idx = 0;
     char* ptr = dest;
+    uint32_t block_idx = 0;
 
-    while (bytes_left > 0)
+    // Direct blocks (0-11)
+    while (bytes_left > 0 && block_idx < 12)
     {
         uint8_t buf[1024];
-        ata_read28(blocks[block_idx] * sectors_per_block, buf, EXT2_DISK_DRIVE);
+        uint32_t sector = inode.i_block[block_idx] * sectors_per_block;
+        for (uint32_t s = 0; s < sectors_per_block; s++)
+            ata_read28(sector + s, buf + s * 512, EXT2_DISK_DRIVE);
 
         uint32_t to_copy = bytes_left < block_size ? bytes_left : block_size;
         kmemcpy(ptr, buf, to_copy);
@@ -178,5 +179,72 @@ void ext2_read_file(uint32_t inode_num, char* dest)
         bytes_left -= to_copy;
         block_idx++;
     }
+
+    // Singly indirect block (i_block[12])
+    if (bytes_left > 0 && inode.i_block[12] != 0)
+    {
+        uint8_t indirect_buf[1024];
+        uint32_t sector = inode.i_block[12] * sectors_per_block;
+        for (uint32_t s = 0; s < sectors_per_block; s++)
+            ata_read28(sector + s, indirect_buf + s * 512, EXT2_DISK_DRIVE);
+
+        uint32_t* indirect_blocks = (uint32_t*)indirect_buf;
+        uint32_t ptrs_per_block = block_size / 4;
+
+        for (uint32_t i = 0; i < ptrs_per_block && bytes_left > 0; i++)
+        {
+            if (indirect_blocks[i] == 0) break;
+
+            uint8_t buf[1024];
+            uint32_t bsector = indirect_blocks[i] * sectors_per_block;
+            for (uint32_t s = 0; s < sectors_per_block; s++)
+                ata_read28(bsector + s, buf + s * 512, EXT2_DISK_DRIVE);
+
+            uint32_t to_copy = bytes_left < block_size ? bytes_left : block_size;
+            kmemcpy(ptr, buf, to_copy);
+            ptr += to_copy;
+            bytes_left -= to_copy;
+        }
+    }
+
+    // Doubly indirect block (i_block[13])
+    if (bytes_left > 0 && inode.i_block[13] != 0)
+    {
+        uint8_t dbl_buf[1024];
+        uint32_t sector = inode.i_block[13] * sectors_per_block;
+        for (uint32_t s = 0; s < sectors_per_block; s++)
+            ata_read28(sector + s, dbl_buf + s * 512, EXT2_DISK_DRIVE);
+
+        uint32_t* dbl_blocks = (uint32_t*)dbl_buf;
+        uint32_t ptrs_per_block = block_size / 4;
+
+        for (uint32_t i = 0; i < ptrs_per_block && bytes_left > 0; i++)
+        {
+            if (dbl_blocks[i] == 0) break;
+
+            uint8_t indirect_buf[1024];
+            uint32_t isector = dbl_blocks[i] * sectors_per_block;
+            for (uint32_t s = 0; s < sectors_per_block; s++)
+                ata_read28(isector + s, indirect_buf + s * 512, EXT2_DISK_DRIVE);
+
+            uint32_t* indirect_blocks = (uint32_t*)indirect_buf;
+
+            for (uint32_t j = 0; j < ptrs_per_block && bytes_left > 0; j++)
+            {
+                if (indirect_blocks[j] == 0) break;
+
+                uint8_t buf[1024];
+                uint32_t bsector = indirect_blocks[j] * sectors_per_block;
+                for (uint32_t s = 0; s < sectors_per_block; s++)
+                    ata_read28(bsector + s, buf + s * 512, EXT2_DISK_DRIVE);
+
+                uint32_t to_copy = bytes_left < block_size ? bytes_left : block_size;
+                kmemcpy(ptr, buf, to_copy);
+                ptr += to_copy;
+                bytes_left -= to_copy;
+            }
+        }
+    }
+
     *ptr = '\0';
 }

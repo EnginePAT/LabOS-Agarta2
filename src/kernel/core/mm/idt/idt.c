@@ -12,7 +12,6 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
-#include "kernel/core/vga/serial.h"
 #include "userspace/core/syscall_handler.h"
 #include <stdint.h>
 #include <util/mem.h>
@@ -183,16 +182,7 @@ void isr_handler(struct InterruptRegisters* regs)
 {
     if (regs->int_no == 128)
     {
-        serial_print("ecx (buf ptr) = ");
-        serial_print_hex(regs->ecx);
-        serial_print("\n");
-
-        serial_print("buf contents: ");
-        serial_print((char*)regs->ecx);
-        serial_print("\n");
-
-        syscall_handler(regs);
-        serial_print((char*)regs->ecx);
+        syscall_handler(regs);              // Call the syscall handler, and pass in the registers
         return;
     }
     if (regs->int_no < 32){

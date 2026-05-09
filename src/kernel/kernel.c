@@ -92,6 +92,8 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
     vfs_read(n, 0, n->size, program);
     uint32_t code_size  = n->size;
     uint32_t code_pages = (code_size + PAGE_SIZE - 1) / PAGE_SIZE;
+
+    // Veryify userland.exe is Mach4
     
     serial_print("userland size=");
     serial_print_hex(n->size);
@@ -118,6 +120,11 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
 
     serial_print("First dword at USER_CODE_BASE: ");
     serial_print_hex(*(uint32_t*)USER_CODE_BASE);
+    serial_print("\n");
+
+    vfs_read(n, 0, n->size, program);
+    serial_print("program at 0xA00: ");
+    serial_print_hex(*(uint8_t*)(program + 0xA00));
     serial_print("\n");
 
     userspace_init();
