@@ -17,9 +17,6 @@
 
 int exit(int code)
 {
-    vga_print("Process exited with code: ");
-    vga_print("\n");
-
     __asm__ volatile (
         "int $0x80"
         :

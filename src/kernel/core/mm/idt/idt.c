@@ -12,6 +12,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  */
+#include "kernel/core/vga/serial.h"
 #include "userspace/core/syscall_handler.h"
 #include <stdint.h>
 #include <util/mem.h>
@@ -167,14 +168,30 @@ void panic(struct InterruptRegisters* regs, const char* message) {
     vga_print("\nECX: "); vga_print_hex(regs->ecx);
     vga_print("  EDX: "); vga_print_hex(regs->edx);
     vga_print("\nESP: "); vga_print_hex(regs->esp);
+
+    serial_print("\n*** KERNEL PANIC ***\n");
+    serial_print("Reason: ");
+    serial_print(message);
+    serial_print("\n\n");
+
+    // Print the Register State
+    serial_print("EIP: "); serial_print_hex(regs->eip);
+    // vga_print("  CS: "); vga_print_hex(regs->cs);
+    serial_print("\nEAX: "); serial_print_hex(regs->eax);
+    serial_print("  EBX: "); serial_print_hex(regs->ebx);
+    serial_print("\nECX: "); serial_print_hex(regs->ecx);
+    serial_print("  EDX: "); serial_print_hex(regs->edx);
+    serial_print("\nESP: "); serial_print_hex(regs->esp);
     
     if (regs->int_no == 14) {
         uint32_t cr2;
         asm volatile("mov %%cr2, %0" : "=r"(cr2));
         vga_print("\nPage Fault at: "); vga_print_hex(cr2);
+        serial_print("\nPage Fault at: "); serial_print_hex(cr2);
     }
 
     vga_print("\n\nSYSTEM HALTED.");
+    serial_print("\n\nSYSTEM HALTED.");
     for (;;);
 }
 

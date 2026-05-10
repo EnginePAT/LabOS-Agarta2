@@ -14,11 +14,11 @@
  */
 #include <kernel/core/mm/vmm.h>
 #include <kernel/core/vga/vga.h>
+#include <stdint.h>
 #include <userspace/userspace.h>
 #include <kernel/core/mm/gdt.h>
-#include <userspace/core/syscall_handler.h>
 
-void userspace_init()
+void userspace_init(uint32_t entry)
 {
     // Set kernel stack in TSS
     extern struct tss_entry_struct tss_entry;
@@ -28,8 +28,5 @@ void userspace_init()
     vga_print("Welcome to Userland!\n");
 
     // Call our assembly function which jumps to Ring 3
-    jump_usermode(USER_CODE_BASE, USER_STACK_TOP);
-
-    // sys_exit(0);
-    // write(1, "Hello, world from userland!", 30);
+    jump_usermode(entry, USER_STACK_TOP - 4);      // Hardcoded USER_CODE_BASE, not nice :(
 }
