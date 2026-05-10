@@ -32,8 +32,8 @@ export PATH="$PREFIX/bin:$PATH"
 cd /opt/cross/i386
 
 echo "Downloading sources"
-# wget -nc https://ftp.gnu.org/gnu/binutils/binutils-2.42.tar.xz
-# wget -nc https://ftp.gnu.org/gnu/gcc/gcc-14.2.0/gcc-14.2.0.tar.xz
+wget -nc https://ftp.gnu.org/gnu/binutils/binutils-2.42.tar.xz
+wget -nc https://ftp.gnu.org/gnu/gcc/gcc-14.2.0/gcc-14.2.0.tar.xz
 
 tar -xf binutils-2.42.tar.xz
 tar -xf gcc-14.2.0.tar.xz
