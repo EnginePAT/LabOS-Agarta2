@@ -19,7 +19,7 @@
 
 #include <kernel/core/mm/gdt.h>
 #include <kernel/core/mm/idt.h>
-#include <kernel/core/mm/pic.h>
+#include <kernel/core/mm/pit.h>
 #include <kernel/core/mm/pmm.h>
 #include <kernel/core/mm/vmm.h>
 #include <kernel/core/mm/memory.h>
@@ -32,15 +32,85 @@
 #include <stdint.h>
 #include <util/mem.h>
 
+#include <kernel/core/multitasking/process.h>
+#include <kernel/core/multitasking/scheduler.h>
+
 // Userspace
 #include <userspace/userspace.h>
 #include <userspace/core/mach4/loader.h>
+
+static struct LFramebufferInfo* g_fb = 0;
+uint32_t userland_entry;
 
 void mach4_execute(uint32_t entry)
 {
     uint32_t user_stack = USER_STACK_TOP;
 
     jump_usermode(entry, user_stack);
+}
+
+extern uint64_t ticks;
+
+void task_a() {
+    int size = 50;
+    int dir = 1;
+    uint64_t last_tick = 0;
+    asm volatile("sti");
+
+    while (1) {
+        uint8_t* fb = (uint8_t*)g_fb->framebuffer;
+
+        for (int y = 400; y < 500; y++)
+            for (int x = 400; x < 500; x++) {
+                uint32_t off = y * 3072 + x * 3;
+                fb[off] = fb[off+1] = fb[off+2] = 0;
+            }
+
+        for (int y = 400; y < 400 + size; y++)
+            for (int x = 400; x < 400 + size; x++) {
+                uint32_t off = y * 3072 + x * 3;
+                fb[off]   = 0xFF;
+                fb[off+1] = 0x00;
+                fb[off+2] = 0x00;
+            }
+
+        if (ticks - last_tick >= 10) {
+            last_tick = ticks;
+            size += dir;
+            if (size >= 100 || size <= 1) dir = -dir;
+        }
+    }
+}
+
+void task_b() {
+    int size = 25;
+    int dir = 1;
+    uint64_t last_tick = 0;
+    asm volatile("sti");
+
+    while (1) {
+        uint8_t* fb = (uint8_t*)g_fb->framebuffer;
+
+        for (int y = 300; y < 400; y++)
+            for (int x = 300; x < 400; x++) {
+                uint32_t off = y * 3072 + x * 3;
+                fb[off] = fb[off+1] = fb[off+2] = 0;
+            }
+
+        for (int y = 300; y < 300 + size; y++)
+            for (int x = 300; x < 300 + size; x++) {
+                uint32_t off = y * 3072 + x * 3;
+                fb[off]   = 0x00;
+                fb[off+1] = 0xFF;
+                fb[off+2] = 0x00;
+            }
+
+        if (ticks - last_tick >= 10) {
+            last_tick = ticks;
+            size += dir;
+            if (size >= 100 || size <= 1) dir = -dir;
+        }
+    }
 }
 
 void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
@@ -52,6 +122,7 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
     // Use safe copies from here on
     boot_info = &safe_boot_info;
     fb_info = &safe_fb_info;
+    g_fb = &safe_fb_info;
 
     // Print a message
     setFbInfo(&safe_fb_info);
@@ -104,9 +175,9 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
         vga_print("Invalid Mach4 Magic!\n");
         for(;;);
     }
-    uint32_t entry = USER_CODE_BASE + m4hdr->entry_offset;
+    userland_entry = USER_CODE_BASE + m4hdr->entry_offset;
     vga_print("Mach4 Entry at: ");
-    vga_print_hex(entry);
+    vga_print_hex(userland_entry);
     vga_print("\n");
 
     for (uint32_t i = 0; i < code_pages; i++) {
@@ -121,8 +192,25 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
     current_dir[PAGE_DIR_INDEX(USER_CODE_BASE)] |= PAGE_USER;
     vga_print("[ DONE ]: Finished loading userland.exe.\n");
 
+
+    // Setup the scheduler and multitasking
+    process_init();
+    // process_t* uproc = process_create(entry, current_dir);
+    process_t* ta = process_create((uint32_t)task_a, current_dir);
+    process_t* tb = process_create((uint32_t)task_b, current_dir);
+    process_create((uint32_t)userspace_init, current_dir);
+
+    // Start task_a manually
+    process_t* prev = current_process;
+    current_process = ta;
+    prev->state = P_DEAD;
+    ta->state = P_RUNNING;
+
+    context_switch(&prev->esp, ta->esp, (uint32_t)ta->page_dir);
+
+
     vga_print("Jumping to usermode.\n");
-    userspace_init(entry);
+    // userspace_init(entry);
 
     while (1);
 }

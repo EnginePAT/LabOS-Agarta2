@@ -58,7 +58,10 @@ KERNEL_OBJS = \
     $(USER_DIR)/syscall.o \
     $(USER_DIR)/handlers.o \
 	$(KERNEL_DIR)/vfa.o \
-	$(KERNEL_DIR)/ext2_vfs.o
+	$(KERNEL_DIR)/ext2_vfs.o \
+	$(KERNEL_DIR)/scheduler.o \
+	$(KERNEL_DIR)/context_switch.o \
+	$(KERNEL_DIR)/process.o
 
 $(KERNEL_DIR)/kernel.bin: $(KERNEL_DIR)/kernel.elf
 	$(LD) -T $(SRC_DIR)/kernel.ld $^ -o $@ --oformat binary
@@ -146,6 +149,15 @@ $(USER_DIR)/syscall.o: $(SRC_DIR)/userspace/core/syscall.c | always
 
 $(USER_DIR)/handlers.o: $(SRC_DIR)/userspace/core/handlers/handlers.c | always
 	$(CC) $(CFLAGS) $< -o $@
+
+$(KERNEL_DIR)/scheduler.o: $(SRC_DIR)/kernel/core/multitasking/scheduler.c | always
+	$(CC) $(CFLAGS) $< -o $@
+
+$(KERNEL_DIR)/process.o: $(SRC_DIR)/kernel/core/multitasking/process.c | always
+	$(CC) $(CFLAGS) $< -o $@
+
+$(KERNEL_DIR)/context_switch.o: $(SRC_DIR)/kernel/core/multitasking/context_switch.asm | always
+	$(ASM) $< -f elf32 -o $@
 
 always:
 	mkdir -p $(KERNEL_DIR)

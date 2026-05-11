@@ -17,7 +17,9 @@
 
 #include <stdint.h>
 
-void userspace_init(uint32_t entry);
+extern uint32_t userland_entry;
+
+void userspace_init(void);
 extern void jump_usermode(uint32_t entry, uint32_t stack);
 
 #endif      // USERSPACE_H
