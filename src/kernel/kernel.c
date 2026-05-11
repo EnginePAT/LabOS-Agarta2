@@ -113,6 +113,32 @@ void task_b() {
     }
 }
 
+void draw_quadratic()
+{
+    // y = ax^2 + bx + c
+    // We'll assume a = 1, b = 2, c = 3
+    // Therefore we get:
+    //  y = x^2 + 2x + 3
+    uint8_t* fb = (uint8_t*)g_fb->framebuffer;
+    int width  = g_fb->width;
+    int height = g_fb->height;
+    int pitch  = g_fb->pitch; // bytes per row
+
+    int r = 50;
+    int cx = 100;
+    int cy = 500;
+
+    asm volatile("sti");
+
+    for (int y = -r; y <= r; y++) {
+        for (int x = -r; x <= r; x++) {
+            if (x*x + y*y <= r*r) {
+                putpixel(cx + x, cy + y, 0xFFFFFFFF);
+            }
+        }
+    }
+}
+
 void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
 {
     // Copy boot info to safe kernel memory before vmm_init
@@ -200,13 +226,14 @@ void kernel_main(struct LBootInfo* boot_info, struct LFramebufferInfo* fb_info)
     process_t* tb = process_create((uint32_t)task_b, current_dir);
     process_create((uint32_t)userspace_init, current_dir);
 
-    // Start task_a manually
+    // Start task_a as the first program in the scheduler
+    process_t* p = ta;
     process_t* prev = current_process;
-    current_process = ta;
+    current_process = p;
     prev->state = P_DEAD;
-    ta->state = P_RUNNING;
+    p->state = P_RUNNING;
 
-    context_switch(&prev->esp, ta->esp, (uint32_t)ta->page_dir);
+    context_switch(&prev->esp, p->esp, (uint32_t)p->page_dir);
 
 
     vga_print("Jumping to usermode.\n");

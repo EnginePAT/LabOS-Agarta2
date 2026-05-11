@@ -29,8 +29,13 @@ void setFbInfo(struct LFramebufferInfo* info)
 
 void putpixel(int x, int y, uint32_t color)
 {
+    if (x < 0 || y < 0) return;
+    if (x >= _fb_info->width) return;
+    if (y >= _fb_info->height) return;
+
     uint32_t* fb = (uint32_t*)_fb_info->framebuffer;
     uint32_t pitch_pixels = _fb_info->pitch / 4;
+
     fb[y * pitch_pixels + x] = color;
 }
 
