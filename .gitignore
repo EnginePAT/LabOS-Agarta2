@@ -6,3 +6,5 @@ src/.DS_Store
 include/kernel/.DS_Store
 include/.DS_Store
 .DS_Store
+ext2.img
+disk.img
