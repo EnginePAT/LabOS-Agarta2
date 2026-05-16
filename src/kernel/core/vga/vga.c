@@ -1,3 +1,17 @@
+/*
+ * LabOS Agarta
+ * Copyright (c) 2026 EnginePAT
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ */
 #include "kernel/boot_info.h"
 #include <kernel/core/vga/vga.h>
 #include <stdint.h>
@@ -15,8 +29,13 @@ void setFbInfo(struct LFramebufferInfo* info)
 
 void putpixel(int x, int y, uint32_t color)
 {
+    if (x < 0 || y < 0) return;
+    if (x >= _fb_info->width) return;
+    if (y >= _fb_info->height) return;
+
     uint32_t* fb = (uint32_t*)_fb_info->framebuffer;
     uint32_t pitch_pixels = _fb_info->pitch / 4;
+
     fb[y * pitch_pixels + x] = color;
 }
 

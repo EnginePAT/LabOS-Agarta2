@@ -1,9 +1,23 @@
+/*
+ * LabOS Agarta
+ * Copyright (c) 2026 EnginePAT
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ */
 #include <kernel/core/mm/pmm.h>
 #include <util/mem.h>
 #include <stdint.h>
 #include <kernel/core/vga/serial.h>
 
-#define BITMAP_ADDR 0x10000
+#define BITMAP_ADDR 0x00107000
 #define BIT_SET(idx)            (bitmap[(idx) / 8] |= (1 << ((idx) % 8)))
 #define BIT_CLEAR(idx)          (bitmap[(idx) / 8] &= ~(1 << ((idx) % 8)))
 #define BIT_TEST(idx)           (bitmap[(idx) / 8] &   (1 << ((idx) % 8)))
@@ -12,7 +26,7 @@ static uint32_t BITMAP_SIZE;
 static uint8_t* bitmap;
 
 static void pmm_free_region(uint32_t base, uint32_t length);
-static void pmm_reserve_region(uint32_t base, uint32_t length);
+void pmm_reserve_region(uint32_t base, uint32_t length);
 
 void pmm_init(uint32_t msize, e820_entry_t* mmap, uint32_t mmap_count)
 {
@@ -39,6 +53,7 @@ void pmm_init(uint32_t msize, e820_entry_t* mmap, uint32_t mmap_count)
     serial_print("PMM: reserving kernel\n");
     // pmm_reserve_region(0x0000, 0x1000);
     // pmm_reserve_region(0x1000, 0x8000);   // Stage2 lives here
+    pmm_reserve_region(BITMAP_ADDR, 0x1000);  // at minimum one page
     pmm_reserve_region(0x0000, BITMAP_ADDR);
     pmm_reserve_region(BITMAP_ADDR, BITMAP_SIZE);
     pmm_reserve_region((uint32_t)&_kernel_start, (uint32_t)&_kernel_end - (uint32_t)&_kernel_start);
@@ -56,15 +71,12 @@ static void pmm_free_region(uint32_t base, uint32_t length)
     }
 }
 
-static void pmm_reserve_region(uint32_t base, uint32_t length)
+void pmm_reserve_region(uint32_t base, uint32_t length)
 {
     uint32_t start_page = base / PAGE_SIZE;
-    uint32_t end_page   = (base + length) / PAGE_SIZE;
-
+    uint32_t end_page   = (base + length + PAGE_SIZE - 1) / PAGE_SIZE;
     for (uint32_t i = start_page; i < end_page; i++)
-    {
         BIT_SET(i);
-    }
 }
 
 uint32_t pmm_alloc()
